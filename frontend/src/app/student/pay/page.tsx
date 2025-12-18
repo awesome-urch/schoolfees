@@ -6,7 +6,7 @@ import { GraduationCap, Loader2, CreditCard, Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import api from '@/lib/api'
+import { publicApi } from '@/lib/api'
 
 export default function StudentPaymentPage() {
   const [step, setStep] = useState(1)
@@ -44,7 +44,7 @@ export default function StudentPaymentPage() {
 
   const fetchSchools = async () => {
     try {
-      const response = await api.get('/schools/public/list')
+      const response = await publicApi.get('/schools/public/list')
       setSchools(response.data)
       setFilteredSchools(response.data)
     } catch (err) {
@@ -59,13 +59,13 @@ export default function StudentPaymentPage() {
     setError('')
 
     try {
-      const response = await api.get(
+      const response = await publicApi.get(
         `/students/admission/${formData.admissionNumber}/school/${formData.schoolId}`
       )
       setStudent(response.data)
 
       // Fetch available fees for this student
-      const feesResponse = await api.get(`/fees/school/${formData.schoolId}`)
+      const feesResponse = await publicApi.get(`/fees/school/${formData.schoolId}`)
       setFees(feesResponse.data)
 
       setStep(2)
@@ -83,11 +83,17 @@ export default function StudentPaymentPage() {
     try {
       const selectedFee = fees.find((f) => f.id === parseInt(formData.selectedFeeId))
       
-      const response = await api.post('/payments/initialize', {
+      if (!selectedFee) {
+        setError('Selected fee not found')
+        setLoading(false)
+        return
+      }
+
+      const response = await publicApi.post('/payments/initialize', {
         schoolId: parseInt(formData.schoolId),
         studentId: student.id,
         feeTypeId: parseInt(formData.selectedFeeId),
-        amount: selectedFee.amount,
+        amount: Number(selectedFee.amount),
         email: formData.email,
         paymentMethod: 'paystack',
       })

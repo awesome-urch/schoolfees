@@ -7,16 +7,10 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 
 @Controller('fees')
-@UseGuards(JwtAuthGuard, RolesGuard)
 export class FeesController {
   constructor(private readonly feesService: FeesService) {}
 
-  @Post()
-  @Roles('school_owner', 'school_staff')
-  create(@Body() createFeeTypeDto: CreateFeeTypeDto) {
-    return this.feesService.create(createFeeTypeDto);
-  }
-
+  // Public endpoint for student payment page - no auth required
   @Get('school/:schoolId')
   findAll(
     @Param('schoolId') schoolId: string,
@@ -30,13 +24,22 @@ export class FeesController {
     );
   }
 
+  @Post()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('school_owner', 'school_staff')
+  create(@Body() createFeeTypeDto: CreateFeeTypeDto) {
+    return this.feesService.create(createFeeTypeDto);
+  }
+
   @Get(':id/school/:schoolId')
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('school_owner', 'school_staff')
   findOne(@Param('id') id: string, @Param('schoolId') schoolId: string) {
     return this.feesService.findOne(+id, +schoolId);
   }
 
   @Patch(':id/school/:schoolId')
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('school_owner', 'school_staff')
   update(
     @Param('id') id: string,
@@ -47,6 +50,7 @@ export class FeesController {
   }
 
   @Delete(':id/school/:schoolId')
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('school_owner', 'school_staff')
   remove(@Param('id') id: string, @Param('schoolId') schoolId: string) {
     return this.feesService.remove(+id, +schoolId);

@@ -2,6 +2,15 @@ import axios from 'axios';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
+// Public API client - no auth required, no redirects
+export const publicApi = axios.create({
+  baseURL: API_URL,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+// Authenticated API client
 export const api = axios.create({
   baseURL: API_URL,
   headers: {
@@ -41,6 +50,7 @@ api.interceptors.response.use(
       } catch (refreshError) {
         localStorage.removeItem('accessToken');
         localStorage.removeItem('refreshToken');
+        localStorage.removeItem('user');
         window.location.href = '/auth/login';
         return Promise.reject(refreshError);
       }

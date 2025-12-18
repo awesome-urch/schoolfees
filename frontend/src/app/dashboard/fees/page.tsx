@@ -98,19 +98,28 @@ export default function FeesManagementPage() {
     setLoading(true)
 
     try {
-      const payload = {
-        ...formData,
-        schoolId: parseInt(selectedSchool),
-        sessionId: parseInt(formData.sessionId),
-        classId: formData.classId ? parseInt(formData.classId) : null,
-        amount: parseFloat(formData.amount),
-      }
-
       if (editingFee) {
-        await api.patch(`/fees/${editingFee.id}/school/${selectedSchool}`, payload)
+        // When updating, only send allowed fields (name, description, amount, isActive)
+        const updatePayload = {
+          name: formData.name,
+          description: formData.description,
+          amount: parseFloat(formData.amount),
+          isActive: formData.isActive,
+        }
+        await api.patch(`/fees/${editingFee.id}/school/${selectedSchool}`, updatePayload)
         alert('Fee updated successfully!')
       } else {
-        await api.post('/fees', payload)
+        // When creating, send all fields including schoolId, sessionId, classId
+        const createPayload = {
+          schoolId: parseInt(selectedSchool),
+          sessionId: parseInt(formData.sessionId),
+          classId: formData.classId ? parseInt(formData.classId) : null,
+          name: formData.name,
+          description: formData.description,
+          amount: parseFloat(formData.amount),
+          isActive: formData.isActive,
+        }
+        await api.post('/fees', createPayload)
         alert('Fee created successfully!')
       }
       
@@ -210,6 +219,9 @@ export default function FeesManagementPage() {
             </Link>
             <Link href="/dashboard/schools" className="py-4 px-2 border-b-2 border-transparent text-gray-600 hover:text-gray-900">
               Schools
+            </Link>
+            <Link href="/dashboard/sessions" className="py-4 px-2 border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300">
+              Sessions
             </Link>
             <Link href="/dashboard/students" className="py-4 px-2 border-b-2 border-transparent text-gray-600 hover:text-gray-900">
               Students
@@ -364,8 +376,9 @@ export default function FeesManagementPage() {
                       id="sessionId"
                       value={formData.sessionId}
                       onChange={(e) => setFormData({ ...formData, sessionId: e.target.value })}
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                       required
+                      disabled={!!editingFee}
                     >
                       <option value="">Select Session</option>
                       {sessions.map((session) => (
@@ -374,6 +387,9 @@ export default function FeesManagementPage() {
                         </option>
                       ))}
                     </select>
+                    {editingFee && (
+                      <p className="text-xs text-gray-500 mt-1">Session cannot be changed after creation</p>
+                    )}
                   </div>
 
                   <div>
@@ -382,7 +398,8 @@ export default function FeesManagementPage() {
                       id="classId"
                       value={formData.classId}
                       onChange={(e) => setFormData({ ...formData, classId: e.target.value })}
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                      disabled={!!editingFee}
                     >
                       <option value="">All Classes</option>
                       {classes.map((cls) => (
@@ -391,6 +408,9 @@ export default function FeesManagementPage() {
                         </option>
                       ))}
                     </select>
+                    {editingFee && (
+                      <p className="text-xs text-gray-500 mt-1">Class cannot be changed after creation</p>
+                    )}
                   </div>
 
                   <div>

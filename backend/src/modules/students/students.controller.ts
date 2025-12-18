@@ -20,17 +20,27 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 
 @Controller('students')
-@UseGuards(JwtAuthGuard, RolesGuard)
 export class StudentsController {
   constructor(private readonly studentsService: StudentsService) {}
 
+  // Public endpoint for student payment page - no auth required
+  @Get('admission/:admissionNumber/school/:schoolId')
+  findByAdmissionNumber(
+    @Param('admissionNumber') admissionNumber: string,
+    @Param('schoolId') schoolId: string,
+  ) {
+    return this.studentsService.findByAdmissionNumber(admissionNumber, +schoolId);
+  }
+
   @Post()
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('school_owner', 'school_staff')
   create(@Body() createStudentDto: CreateStudentDto) {
     return this.studentsService.create(createStudentDto);
   }
 
   @Post('bulk-upload/:schoolId')
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('school_owner', 'school_staff')
   @UseInterceptors(FileInterceptor('file'))
   bulkUpload(
@@ -41,6 +51,7 @@ export class StudentsController {
   }
 
   @Get('school/:schoolId')
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('school_owner', 'school_staff')
   findAll(
     @Param('schoolId') schoolId: string,
@@ -50,17 +61,10 @@ export class StudentsController {
   }
 
   @Get(':id/school/:schoolId')
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('school_owner', 'school_staff')
   findOne(@Param('id') id: string, @Param('schoolId') schoolId: string) {
     return this.studentsService.findOne(+id, +schoolId);
-  }
-
-  @Get('admission/:admissionNumber/school/:schoolId')
-  findByAdmissionNumber(
-    @Param('admissionNumber') admissionNumber: string,
-    @Param('schoolId') schoolId: string,
-  ) {
-    return this.studentsService.findByAdmissionNumber(admissionNumber, +schoolId);
   }
 
   @Patch(':id/school/:schoolId')
