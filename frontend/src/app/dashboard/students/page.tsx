@@ -206,9 +206,10 @@ export default function StudentsManagementPage() {
   }
 
   const downloadTemplate = () => {
-    const template = `admissionNumber,firstName,lastName,otherNames,dateOfBirth,gender,email,phone,parentName,parentEmail,parentPhone,address,classId
-STU001,John,Doe,Michael,2010-05-15,male,john@example.com,08012345678,Jane Doe,jane@example.com,08087654321,123 Main St,1
-STU002,Mary,Smith,Jane,2011-03-20,female,mary@example.com,08023456789,Peter Smith,peter@example.com,08098765432,456 Oak Ave,1`
+    const template = `admissionNumber,firstName,lastName,otherNames,dateOfBirth,gender,email,phone,parentName,parentEmail,parentPhone,address,className
+STU001,John,Doe,Michael,2010-05-15,male,john@example.com,08012345678,Jane Doe,jane@example.com,08087654321,123 Main St,JSS 1
+STU002,Mary,Smith,Jane,2011-03-20,female,mary@example.com,08023456789,Peter Smith,peter@example.com,08098765432,456 Oak Ave,JSS 1
+STU003,David,Johnson,Paul,2010-08-12,male,david@example.com,08034567890,Sarah Johnson,sarah@example.com,08076543210,789 Pine Rd,SS 2`
     
     const blob = new Blob([template], { type: 'text/csv' })
     const url = window.URL.createObjectURL(blob)

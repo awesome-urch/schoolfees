@@ -1,8 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { GraduationCap, Loader2, CreditCard } from 'lucide-react'
+import { GraduationCap, Loader2, CreditCard, Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -14,12 +14,44 @@ export default function StudentPaymentPage() {
   const [error, setError] = useState('')
   const [student, setStudent] = useState<any>(null)
   const [fees, setFees] = useState<any[]>([])
+  const [schools, setSchools] = useState<any[]>([])
+  const [filteredSchools, setFilteredSchools] = useState<any[]>([])
+  const [schoolSearchTerm, setSchoolSearchTerm] = useState('')
   const [formData, setFormData] = useState({
     schoolId: '',
     admissionNumber: '',
     email: '',
     selectedFeeId: '',
   })
+
+  // Fetch all schools on mount
+  useEffect(() => {
+    fetchSchools()
+  }, [])
+
+  // Filter schools based on search term
+  useEffect(() => {
+    if (schoolSearchTerm) {
+      const filtered = schools.filter(school =>
+        school.name.toLowerCase().includes(schoolSearchTerm.toLowerCase()) ||
+        school.address?.toLowerCase().includes(schoolSearchTerm.toLowerCase())
+      )
+      setFilteredSchools(filtered)
+    } else {
+      setFilteredSchools(schools)
+    }
+  }, [schoolSearchTerm, schools])
+
+  const fetchSchools = async () => {
+    try {
+      const response = await api.get('/schools/public/list')
+      setSchools(response.data)
+      setFilteredSchools(response.data)
+    } catch (err) {
+      console.error('Failed to fetch schools:', err)
+      setError('Failed to load schools. Please refresh the page.')
+    }
+  }
 
   const handleFindStudent = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -108,16 +140,43 @@ export default function StudentPaymentPage() {
                 )}
 
                 <div className="space-y-2">
-                  <Label htmlFor="schoolId">School ID</Label>
-                  <Input
+                  <Label htmlFor="schoolSearch">Search Your School</Label>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                    <Input
+                      id="schoolSearch"
+                      type="text"
+                      placeholder="Type school name or address..."
+                      value={schoolSearchTerm}
+                      onChange={(e) => setSchoolSearchTerm(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="schoolId">Select School</Label>
+                  <select
                     id="schoolId"
-                    type="number"
-                    placeholder="Enter school ID"
                     value={formData.schoolId}
                     onChange={(e) => setFormData({ ...formData, schoolId: e.target.value })}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                     required
-                  />
-                  <p className="text-xs text-gray-500">Contact your school for the School ID</p>
+                  >
+                    <option value="">-- Select your school --</option>
+                    {filteredSchools.map((school) => (
+                      <option key={school.id} value={school.id}>
+                        {school.name}
+                        {school.address && ` - ${school.address.substring(0, 50)}${school.address.length > 50 ? '...' : ''}`}
+                      </option>
+                    ))}
+                  </select>
+                  {filteredSchools.length === 0 && schoolSearchTerm && (
+                    <p className="text-xs text-amber-600">No schools found. Try a different search.</p>
+                  )}
+                  {schools.length === 0 && !error && (
+                    <p className="text-xs text-gray-500">Loading schools...</p>
+                  )}
                 </div>
 
                 <div className="space-y-2">

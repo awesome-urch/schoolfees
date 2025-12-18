@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { GraduationCap, LogOut, Plus, Users, X } from 'lucide-react'
+import { GraduationCap, LogOut, Plus, Users, X, Edit, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -17,6 +17,7 @@ export default function ClassesManagementPage() {
   const [classes, setClasses] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
+  const [editingClass, setEditingClass] = useState<any>(null)
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -68,11 +69,19 @@ export default function ClassesManagementPage() {
     setLoading(true)
 
     try {
-      await api.post('/classes', {
-        ...formData,
-        schoolId: parseInt(selectedSchool),
-      })
-      alert('Class created successfully!')
+      if (editingClass) {
+        await api.patch(`/classes/${editingClass.id}`, {
+          ...formData,
+          schoolId: parseInt(selectedSchool),
+        })
+        alert('Class updated successfully!')
+      } else {
+        await api.post('/classes', {
+          ...formData,
+          schoolId: parseInt(selectedSchool),
+        })
+        alert('Class created successfully!')
+      }
       setShowModal(false)
       resetForm()
       fetchClasses(parseInt(selectedSchool))
@@ -83,11 +92,33 @@ export default function ClassesManagementPage() {
     }
   }
 
+  const handleEdit = (cls: any) => {
+    setEditingClass(cls)
+    setFormData({
+      name: cls.name,
+      description: cls.description || '',
+    })
+    setShowModal(true)
+  }
+
+  const handleDelete = async (classId: number) => {
+    if (!confirm('Are you sure you want to delete this class?')) return
+
+    try {
+      await api.delete(`/classes/${classId}`)
+      alert('Class deleted successfully!')
+      fetchClasses(parseInt(selectedSchool))
+    } catch (error: any) {
+      alert(error.response?.data?.message || 'Delete failed')
+    }
+  }
+
   const resetForm = () => {
     setFormData({
       name: '',
       description: '',
     })
+    setEditingClass(null)
   }
 
   const handleLogout = () => {
@@ -208,10 +239,28 @@ export default function ClassesManagementPage() {
                 {cls.description && (
                   <p className="text-sm text-gray-600 mb-4">{cls.description}</p>
                 )}
-                <div className="pt-4 border-t">
+                <div className="pt-4 border-t space-y-2">
                   <p className="text-xs text-gray-500">
                     Created: {new Date(cls.createdAt).toLocaleDateString()}
                   </p>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => handleEdit(cls)}
+                    >
+                      <Edit className="h-4 w-4 mr-1" />
+                      Edit
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => handleDelete(cls.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               </div>
             ))
@@ -260,7 +309,7 @@ export default function ClassesManagementPage() {
                     Cancel
                   </Button>
                   <Button type="submit" className="flex-1" disabled={loading}>
-                    {loading ? 'Creating...' : 'Create Class'}
+                    {loading ? 'Saving...' : (editingClass ? 'Update Class' : 'Create Class')}
                   </Button>
                 </div>
               </form>

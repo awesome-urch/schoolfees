@@ -44,6 +44,15 @@ export class SchoolsService {
     return this.schoolRepo.find({ relations: ['owner'] });
   }
 
+  // Public endpoint - returns only basic school info (id, name, address)
+  async findAllPublic() {
+    const schools = await this.schoolRepo.find({
+      select: ['id', 'name', 'address'],
+      order: { name: 'ASC' },
+    });
+    return schools;
+  }
+
   async findOne(id: number, ownerId?: number) {
     const where: any = { id };
     if (ownerId) {
