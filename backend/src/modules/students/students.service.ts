@@ -141,19 +141,36 @@ export class StudentsService {
 
       for (const row of data) {
         try {
+          // Parse date of birth - handle both string dates and Excel serial numbers
+          let dateOfBirth = row.dateOfBirth || row.DateOfBirth;
+          if (dateOfBirth) {
+            // If it's a number (Excel serial date), convert it
+            if (typeof dateOfBirth === 'number') {
+              const excelEpoch = new Date(1899, 11, 30);
+              const date = new Date(excelEpoch.getTime() + dateOfBirth * 86400000);
+              dateOfBirth = date.toISOString().split('T')[0];
+            } else if (typeof dateOfBirth === 'string') {
+              // Ensure it's in YYYY-MM-DD format
+              const date = new Date(dateOfBirth);
+              if (!isNaN(date.getTime())) {
+                dateOfBirth = date.toISOString().split('T')[0];
+              }
+            }
+          }
+
           const studentData: CreateStudentDto = {
             schoolId,
             admissionNumber: row.admissionNumber || row.AdmissionNumber,
             firstName: row.firstName || row.FirstName,
             lastName: row.lastName || row.LastName,
-            middleName: row.middleName || row.MiddleName,
+            otherNames: row.otherNames || row.OtherNames,
             email: row.email || row.Email,
             phone: row.phone || row.Phone,
             parentName: row.parentName || row.ParentName,
             parentPhone: row.parentPhone || row.ParentPhone,
             parentEmail: row.parentEmail || row.ParentEmail,
             address: row.address || row.Address,
-            dateOfBirth: row.dateOfBirth || row.DateOfBirth,
+            dateOfBirth: dateOfBirth,
             gender: (row.gender || row.Gender)?.toLowerCase(),
           };
 

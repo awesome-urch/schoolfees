@@ -72,6 +72,7 @@ Frontend will run on `http://localhost:3000`
 After first run, you can login as super admin:
 - Email: `admin@schoolfees.com`
 - Password: `Admin@123` (change this!)
+- node scripts/hash-password.js "Admin@123??"
 
 ## Project Structure
 

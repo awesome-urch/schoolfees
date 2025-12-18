@@ -18,8 +18,8 @@ export class CreateSchoolDto {
   state: string;
 
   @IsString()
-  @IsOptional()
-  country?: string = 'Nigeria';
+  @IsNotEmpty()
+  country: string;
 
   @IsEmail()
   @IsNotEmpty()
@@ -29,7 +29,11 @@ export class CreateSchoolDto {
   @IsNotEmpty()
   phone: string;
 
-  @IsUrl()
+  @IsString()
   @IsOptional()
   logoUrl?: string;
+
+  @IsString()
+  @IsOptional()
+  website?: string;
 }

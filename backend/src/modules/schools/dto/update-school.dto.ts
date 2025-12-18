@@ -33,6 +33,10 @@ export class UpdateSchoolDto {
   @IsOptional()
   logoUrl?: string;
 
+  @IsString()
+  @IsOptional()
+  website?: string;
+
   @IsBoolean()
   @IsOptional()
   isActive?: boolean;

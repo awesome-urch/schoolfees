@@ -141,10 +141,40 @@ export class AuthService {
   }
 
   async logout(refreshToken: string) {
-    if (refreshToken) {
-      await this.refreshTokenRepo.delete({ token: refreshToken });
+    await this.refreshTokenRepo.delete({ token: refreshToken });
+    return { message: 'Logged out successfully' };
+  }
+
+  async getAllSchoolOwners() {
+    return this.schoolOwnerRepo.find({
+      order: { createdAt: 'DESC' },
+    });
+  }
+
+  async approveSchoolOwner(id: number) {
+    const owner = await this.schoolOwnerRepo.findOne({ where: { id } });
+    if (!owner) {
+      throw new BadRequestException('School owner not found');
     }
-    return { message: 'Logout successful' };
+
+    owner.isApproved = true;
+    owner.isActive = true;
+    await this.schoolOwnerRepo.save(owner);
+
+    return { message: 'School owner approved successfully', owner };
+  }
+
+  async rejectSchoolOwner(id: number) {
+    const owner = await this.schoolOwnerRepo.findOne({ where: { id } });
+    if (!owner) {
+      throw new BadRequestException('School owner not found');
+    }
+
+    owner.isApproved = false;
+    owner.isActive = false;
+    await this.schoolOwnerRepo.save(owner);
+
+    return { message: 'School owner rejected successfully', owner };
   }
 
   private async generateTokens(userId: number, email: string, userType: string) {

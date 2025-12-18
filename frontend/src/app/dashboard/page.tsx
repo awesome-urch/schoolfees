@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { GraduationCap, Users, DollarSign, TrendingUp, LogOut } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import api from '@/lib/api'
@@ -21,17 +22,38 @@ export default function DashboardPage() {
 
     const parsedUser = JSON.parse(userData)
     setUser(parsedUser)
-
-    // Fetch dashboard stats (you'll need to get schoolId from user's schools)
-    // For now, showing placeholder
-    setStats({
-      totalStudents: 0,
-      totalStaff: 0,
-      totalRevenue: 0,
-      pendingPayments: 0,
-    })
-    setLoading(false)
+    fetchDashboardData()
   }, [router])
+
+  const fetchDashboardData = async () => {
+    try {
+      // Fetch schools first
+      const schoolsResponse = await api.get('/schools')
+      if (schoolsResponse.data.length > 0) {
+        const firstSchool = schoolsResponse.data[0]
+        // Fetch dashboard stats for first school
+        const dashboardResponse = await api.get(`/dashboard/school/${firstSchool.id}`)
+        setStats(dashboardResponse.data.stats)
+      } else {
+        setStats({
+          totalStudents: 0,
+          totalStaff: 0,
+          totalRevenue: 0,
+          pendingPayments: 0,
+        })
+      }
+    } catch (error) {
+      console.error('Failed to fetch dashboard data:', error)
+      setStats({
+        totalStudents: 0,
+        totalStaff: 0,
+        totalRevenue: 0,
+        pendingPayments: 0,
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const handleLogout = () => {
     localStorage.removeItem('accessToken')
@@ -70,6 +92,32 @@ export default function DashboardPage() {
           </div>
         </div>
       </header>
+
+      {/* Navigation */}
+      <nav className="bg-white border-b">
+        <div className="container mx-auto px-4">
+          <div className="flex space-x-8">
+            <Link href="/dashboard" className="py-4 px-2 border-b-2 border-blue-600 text-blue-600 font-medium">
+              Dashboard
+            </Link>
+            <Link href="/dashboard/schools" className="py-4 px-2 border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300">
+              Schools
+            </Link>
+            <Link href="/dashboard/students" className="py-4 px-2 border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300">
+              Students
+            </Link>
+            <Link href="/dashboard/classes" className="py-4 px-2 border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300">
+              Classes
+            </Link>
+            <Link href="/dashboard/fees" className="py-4 px-2 border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300">
+              Fees
+            </Link>
+            <Link href="/dashboard/payments" className="py-4 px-2 border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300">
+              Payments
+            </Link>
+          </div>
+        </div>
+      </nav>
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
@@ -127,15 +175,15 @@ export default function DashboardPage() {
         <div className="bg-white rounded-lg shadow p-6 mb-8">
           <h2 className="text-xl font-bold text-gray-900 mb-4">Quick Actions</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Button className="w-full" onClick={() => alert('Feature coming soon!')}>
-              Add School
-            </Button>
-            <Button className="w-full" variant="outline" onClick={() => alert('Feature coming soon!')}>
-              Add Student
-            </Button>
-            <Button className="w-full" variant="outline" onClick={() => alert('Feature coming soon!')}>
-              View Payments
-            </Button>
+            <Link href="/dashboard/schools" className="w-full">
+              <Button className="w-full">Add School</Button>
+            </Link>
+            <Link href="/dashboard/students" className="w-full">
+              <Button className="w-full" variant="outline">Add Student</Button>
+            </Link>
+            <Link href="/dashboard/payments" className="w-full">
+              <Button className="w-full" variant="outline">View Payments</Button>
+            </Link>
           </div>
         </div>
 

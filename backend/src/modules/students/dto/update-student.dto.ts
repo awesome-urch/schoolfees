@@ -19,7 +19,7 @@ export class UpdateStudentDto {
 
   @IsString()
   @IsOptional()
-  middleName?: string;
+  otherNames?: string;
 
   @IsEmail()
   @IsOptional()
