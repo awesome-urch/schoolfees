@@ -35,6 +35,21 @@ export class BusinessAccountsService {
       throw new Error('Account verification failed');
     }
 
+    // Create Paystack Subaccount for this school
+    // This ensures money goes directly to the school's bank account
+    const subaccountResponse = await this.paystackService.createSubaccount({
+      business_name: school.name,
+      settlement_bank: createAccountDto.bankCode,
+      account_number: createAccountDto.accountNumber,
+      percentage_charge: 0, // Platform takes 0% (you can set this to take a commission)
+    });
+
+    if (!subaccountResponse.status) {
+      throw new Error('Failed to create Paystack subaccount');
+    }
+
+    const subaccountCode = subaccountResponse.data.subaccount_code;
+
     // If setting as primary, unset other primary accounts
     if (createAccountDto.isPrimary) {
       await this.accountRepo.update(
@@ -47,6 +62,7 @@ export class BusinessAccountsService {
       ...createAccountDto,
       school,
       isVerified: true,
+      subaccountCode,
     });
 
     return this.accountRepo.save(account);

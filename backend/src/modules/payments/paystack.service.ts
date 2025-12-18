@@ -16,17 +16,40 @@ export class PaystackService {
     amount: number;
     reference: string;
     metadata?: any;
+    subaccountCode?: string;
   }) {
     try {
+      // Calculate Paystack transaction fee (1.5% + ₦100, capped at ₦2,000)
+      const percentageFee = data.amount * 0.015; // 1.5%
+      const flatFee = 100; // ₦100
+      let transactionFee = percentageFee + flatFee;
+      
+      // Cap at ₦2,000
+      if (transactionFee > 2000) {
+        transactionFee = 2000;
+      }
+
+      // Student pays total = fee amount + transaction fee
+      const totalAmount = data.amount + transactionFee;
+
+      const payload: any = {
+        email: data.email,
+        amount: Math.round(totalAmount * 100), // Convert to kobo
+        reference: data.reference,
+        metadata: data.metadata,
+        callback_url: this.configService.get('FRONTEND_URL') + '/payment/verify',
+        bearer: 'account', // School (merchant) doesn't pay extra fees
+      };
+
+      // CRITICAL: If subaccount is provided, money goes to school's account
+      // Without this, money goes to platform's account!
+      if (data.subaccountCode) {
+        payload.subaccount = data.subaccountCode;
+      }
+
       const response = await axios.post(
         `${this.baseUrl}/transaction/initialize`,
-        {
-          email: data.email,
-          amount: data.amount * 100, // Convert to kobo
-          reference: data.reference,
-          metadata: data.metadata,
-          callback_url: this.configService.get('FRONTEND_URL') + '/payment/verify',
-        },
+        payload,
         {
           headers: {
             Authorization: `Bearer ${this.secretKey}`,
@@ -110,6 +133,56 @@ export class PaystackService {
       return response.data;
     } catch (error) {
       throw new Error('Failed to create transfer recipient');
+    }
+  }
+
+  // Create Paystack Subaccount for automatic settlement routing
+  async createSubaccount(data: {
+    business_name: string;
+    settlement_bank: string;
+    account_number: string;
+    percentage_charge: number;
+  }) {
+    try {
+      const response = await axios.post(
+        `${this.baseUrl}/subaccount`,
+        {
+          business_name: data.business_name,
+          settlement_bank: data.settlement_bank,
+          account_number: data.account_number,
+          percentage_charge: data.percentage_charge,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${this.secretKey}`,
+            'Content-Type': 'application/json',
+          },
+        },
+      );
+
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Failed to create subaccount');
+    }
+  }
+
+  // Update subaccount
+  async updateSubaccount(subaccountCode: string, data: any) {
+    try {
+      const response = await axios.put(
+        `${this.baseUrl}/subaccount/${subaccountCode}`,
+        data,
+        {
+          headers: {
+            Authorization: `Bearer ${this.secretKey}`,
+            'Content-Type': 'application/json',
+          },
+        },
+      );
+
+      return response.data;
+    } catch (error) {
+      throw new Error('Failed to update subaccount');
     }
   }
 }

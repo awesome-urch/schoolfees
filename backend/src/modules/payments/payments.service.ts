@@ -6,6 +6,7 @@ import { Student } from '../../entities/student.entity';
 import { FeeType } from '../../entities/fee-type.entity';
 import { School } from '../../entities/school.entity';
 import { AcademicSession } from '../../entities/academic-session.entity';
+import { BusinessAccount } from '../../entities/business-account.entity';
 import { PaystackService } from './paystack.service';
 import { InitializePaymentDto } from './dto/initialize-payment.dto';
 
@@ -22,6 +23,8 @@ export class PaymentsService {
     private schoolRepo: Repository<School>,
     @InjectRepository(AcademicSession)
     private sessionRepo: Repository<AcademicSession>,
+    @InjectRepository(BusinessAccount)
+    private businessAccountRepo: Repository<BusinessAccount>,
     private paystackService: PaystackService,
   ) {}
 
@@ -47,6 +50,23 @@ export class PaymentsService {
 
     const school = await this.schoolRepo.findOne({ where: { id: schoolId } });
 
+    // CRITICAL: Get school's primary business account for subaccount routing
+    const primaryAccount = await this.businessAccountRepo.findOne({
+      where: { school: { id: schoolId }, isPrimary: true },
+    });
+
+    if (!primaryAccount) {
+      throw new NotFoundException(
+        'No business account configured for this school. Please contact your school administrator.',
+      );
+    }
+
+    if (!primaryAccount.subaccountCode) {
+      throw new BadRequestException(
+        'School business account not properly configured. Please contact your school administrator.',
+      );
+    }
+
     // Generate unique reference
     const reference = `PAY-${Date.now()}-${studentId}`;
 
@@ -64,11 +84,22 @@ export class PaymentsService {
 
     await this.paymentRepo.save(payment);
 
-    // Initialize Paystack payment
+    // Calculate transaction fee (1.5% + ₦100, capped at ₦2,000)
+    const percentageFee = amount * 0.015;
+    const flatFee = 100;
+    let transactionFee = percentageFee + flatFee;
+    if (transactionFee > 2000) {
+      transactionFee = 2000;
+    }
+    const totalAmount = amount + transactionFee;
+
+    // Initialize Paystack payment with subaccount
+    // This ensures money goes to SCHOOL'S account, not platform's account
     const paystackResponse = await this.paystackService.initializePayment({
       email,
       amount,
       reference,
+      subaccountCode: primaryAccount.subaccountCode, // CRITICAL LINE!
       metadata: {
         studentId,
         feeTypeId,
@@ -80,6 +111,9 @@ export class PaymentsService {
     return {
       paymentId: payment.id,
       reference,
+      feeAmount: amount,
+      transactionFee: Math.round(transactionFee),
+      totalAmount: Math.round(totalAmount),
       authorizationUrl: paystackResponse.data.authorization_url,
       accessCode: paystackResponse.data.access_code,
     };
@@ -167,11 +201,11 @@ export class PaymentsService {
 
     return {
       totalPayments: payments.length,
-      successfulPayments: successfulPayments.length,
-      pendingPayments: payments.filter((p) => p.status === 'pending').length,
-      failedPayments: payments.filter((p) => p.status === 'failed').length,
-      totalAmount,
-      successfulAmount,
+      successfulCount: successfulPayments.length,
+      pendingCount: payments.filter((p) => p.status === 'pending').length,
+      failedCount: payments.filter((p) => p.status === 'failed').length,
+      totalRevenue: successfulAmount, // Total revenue from successful payments
+      totalAmount, // Total amount from all payments
     };
   }
 }

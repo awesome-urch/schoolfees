@@ -264,16 +264,41 @@ export default function StudentPaymentPage() {
                   </select>
                 </div>
 
-                {formData.selectedFeeId && (
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <p className="text-sm text-blue-900 mb-2">
-                      <strong>Amount to Pay:</strong>
-                    </p>
-                    <p className="text-3xl font-bold text-blue-600">
-                      ₦{fees.find((f) => f.id === parseInt(formData.selectedFeeId))?.amount.toLocaleString()}
-                    </p>
-                  </div>
-                )}
+                {formData.selectedFeeId && (() => {
+                  const fee = fees.find((f) => f.id === parseInt(formData.selectedFeeId))
+                  const feeAmount = Number(fee?.amount || 0)
+                  // Calculate transaction fee (1.5% + ₦100, capped at ₦2,000)
+                  let transactionFee = (feeAmount * 0.015) + 100
+                  if (transactionFee > 2000) transactionFee = 2000
+                  const totalAmount = feeAmount + transactionFee
+                  
+                  return (
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                      <p className="text-sm text-blue-900 mb-3">
+                        <strong>Payment Breakdown:</strong>
+                      </p>
+                      <div className="space-y-2 mb-3">
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-700">Fee Amount:</span>
+                          <span className="font-semibold text-gray-900">₦{feeAmount.toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-700">Transaction Fee:</span>
+                          <span className="font-semibold text-gray-900">₦{Math.round(transactionFee).toLocaleString()}</span>
+                        </div>
+                        <div className="border-t border-blue-300 pt-2">
+                          <div className="flex justify-between">
+                            <span className="text-blue-900 font-semibold">Total to Pay:</span>
+                            <span className="text-2xl font-bold text-blue-600">₦{Math.round(totalAmount).toLocaleString()}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <p className="text-xs text-blue-700">
+                        * Transaction fee covers payment processing charges
+                      </p>
+                    </div>
+                  )
+                })()}
 
                 <div className="flex gap-4">
                   <Button

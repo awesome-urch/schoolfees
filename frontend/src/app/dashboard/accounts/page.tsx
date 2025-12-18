@@ -3,25 +3,26 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { GraduationCap, LogOut, Plus, Calendar, Edit, Trash2, X, CheckCircle } from 'lucide-react'
+import { GraduationCap, LogOut, Plus, Building2, CheckCircle, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import api from '@/lib/api'
 
-export default function SessionsManagementPage() {
+export default function BusinessAccountsPage() {
   const router = useRouter()
   const [user, setUser] = useState<any>(null)
   const [schools, setSchools] = useState<any[]>([])
   const [selectedSchool, setSelectedSchool] = useState<string>('')
-  const [sessions, setSessions] = useState<any[]>([])
+  const [accounts, setAccounts] = useState<any[]>([])
+  const [banks, setBanks] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
-  const [editingSession, setEditingSession] = useState<any>(null)
   const [formData, setFormData] = useState({
-    name: '',
-    startDate: '',
-    endDate: '',
+    accountNumber: '',
+    bankCode: '',
+    bankName: '',
+    accountName: '',
   })
 
   useEffect(() => {
@@ -34,6 +35,7 @@ export default function SessionsManagementPage() {
     const parsedUser = JSON.parse(userData)
     setUser(parsedUser)
     fetchSchools()
+    fetchBanks()
   }, [router])
 
   const fetchSchools = async () => {
@@ -42,7 +44,7 @@ export default function SessionsManagementPage() {
       setSchools(response.data)
       if (response.data.length > 0) {
         setSelectedSchool(response.data[0].id.toString())
-        fetchSessions(response.data[0].id)
+        fetchAccounts(response.data[0].id)
       }
     } catch (error) {
       console.error('Failed to fetch schools:', error)
@@ -51,18 +53,27 @@ export default function SessionsManagementPage() {
     }
   }
 
-  const fetchSessions = async (schoolId: number) => {
+  const fetchAccounts = async (schoolId: number) => {
     try {
-      const response = await api.get(`/academic-sessions/school/${schoolId}`)
-      setSessions(response.data)
+      const response = await api.get(`/business-accounts/school/${schoolId}`)
+      setAccounts(response.data)
     } catch (error) {
-      console.error('Failed to fetch sessions:', error)
+      console.error('Failed to fetch accounts:', error)
+    }
+  }
+
+  const fetchBanks = async () => {
+    try {
+      const response = await api.get('/business-accounts/banks')
+      setBanks(response.data.data || [])
+    } catch (error) {
+      console.error('Failed to fetch banks:', error)
     }
   }
 
   const handleSchoolChange = (schoolId: string) => {
     setSelectedSchool(schoolId)
-    fetchSessions(parseInt(schoolId))
+    fetchAccounts(parseInt(schoolId))
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -71,57 +82,53 @@ export default function SessionsManagementPage() {
 
     try {
       const payload = {
-        ...formData,
         schoolId: parseInt(selectedSchool),
+        bankName: formData.bankName,
+        bankCode: formData.bankCode,
+        accountNumber: formData.accountNumber,
+        accountName: formData.accountName,
       }
 
-      if (editingSession) {
-        await api.patch(`/academic-sessions/${editingSession.id}/school/${selectedSchool}`, payload)
-        alert('Academic session updated successfully!')
-      } else {
-        await api.post('/academic-sessions', payload)
-        alert('Academic session created successfully!')
-      }
+      console.log('Submitting business account:', payload)
 
+      await api.post('/business-accounts', payload)
+      
+      alert('Business account added successfully! Paystack subaccount created.')
       setShowModal(false)
       resetForm()
-      fetchSessions(parseInt(selectedSchool))
+      fetchAccounts(parseInt(selectedSchool))
     } catch (error: any) {
-      alert(error.response?.data?.message || 'Operation failed')
+      console.error('Failed to add account:', error.response?.data)
+      const errorMessage = error.response?.data?.message
+      if (Array.isArray(errorMessage)) {
+        alert('Validation errors:\n' + errorMessage.join('\n'))
+      } else {
+        alert(errorMessage || 'Failed to add account')
+      }
     } finally {
       setLoading(false)
     }
   }
 
-  const handleEdit = (session: any) => {
-    setEditingSession(session)
-    setFormData({
-      name: session.name,
-      startDate: session.startDate.split('T')[0],
-      endDate: session.endDate.split('T')[0],
-    })
-    setShowModal(true)
-  }
-
-  const handleSetCurrent = async (sessionId: number) => {
-    if (!confirm('Set this as the current academic session?')) return
+  const handleSetPrimary = async (accountId: number) => {
+    if (!confirm('Set this as the primary account for settlements?')) return
 
     try {
-      await api.patch(`/academic-sessions/${sessionId}/school/${selectedSchool}/set-current`, {})
-      alert('Current session updated successfully!')
-      fetchSessions(parseInt(selectedSchool))
+      await api.patch(`/business-accounts/${accountId}/school/${selectedSchool}/set-primary`, {})
+      alert('Primary account updated successfully!')
+      fetchAccounts(parseInt(selectedSchool))
     } catch (error: any) {
-      alert(error.response?.data?.message || 'Failed to set current session')
+      alert(error.response?.data?.message || 'Failed to set primary account')
     }
   }
 
   const resetForm = () => {
     setFormData({
-      name: '',
-      startDate: '',
-      endDate: '',
+      accountNumber: '',
+      bankCode: '',
+      bankName: '',
+      accountName: '',
     })
-    setEditingSession(null)
   }
 
   const handleLogout = () => {
@@ -172,7 +179,7 @@ export default function SessionsManagementPage() {
             <Link href="/dashboard/schools" className="py-4 px-2 border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 whitespace-nowrap">
               Schools
             </Link>
-            <Link href="/dashboard/sessions" className="py-4 px-2 border-b-2 border-blue-600 text-blue-600 font-medium whitespace-nowrap">
+            <Link href="/dashboard/sessions" className="py-4 px-2 border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 whitespace-nowrap">
               Sessions
             </Link>
             <Link href="/dashboard/students" className="py-4 px-2 border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 whitespace-nowrap">
@@ -187,7 +194,7 @@ export default function SessionsManagementPage() {
             <Link href="/dashboard/payments" className="py-4 px-2 border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 whitespace-nowrap">
               Payments
             </Link>
-            <Link href="/dashboard/accounts" className="py-4 px-2 border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 whitespace-nowrap">
+            <Link href="/dashboard/accounts" className="py-4 px-2 border-b-2 border-blue-600 text-blue-600 font-medium whitespace-nowrap">
               Accounts
             </Link>
           </div>
@@ -198,12 +205,12 @@ export default function SessionsManagementPage() {
       <main className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Academic Sessions</h1>
-            <p className="text-gray-600">Manage academic years and terms</p>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Business Accounts</h1>
+            <p className="text-gray-600">Configure bank accounts for receiving settlements</p>
           </div>
           <Button onClick={() => setShowModal(true)}>
             <Plus className="h-4 w-4 mr-2" />
-            Add Session
+            Add Account
           </Button>
         </div>
 
@@ -229,19 +236,19 @@ export default function SessionsManagementPage() {
         {/* Info Alert */}
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
           <p className="text-sm text-blue-800">
-            <strong>Note:</strong> Academic sessions are required before you can create fee types. Set one session as "Current" to use it as the default.
+            <strong>Important:</strong> Add your bank account to receive payments from students. Set one account as primary for automatic settlements.
           </p>
         </div>
 
-        {/* Sessions List */}
+        {/* Accounts List */}
         <div className="bg-white rounded-lg shadow overflow-hidden">
-          {sessions.length === 0 ? (
+          {accounts.length === 0 ? (
             <div className="text-center py-12">
-              <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-600 mb-4">No academic sessions yet</p>
+              <Building2 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-600 mb-4">No business accounts yet</p>
               <Button onClick={() => setShowModal(true)}>
                 <Plus className="h-4 w-4 mr-2" />
-                Create First Session
+                Add First Account
               </Button>
             </div>
           ) : (
@@ -250,13 +257,13 @@ export default function SessionsManagementPage() {
                 <thead className="bg-gray-50 border-b">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Session Name
+                      Account Name
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Start Date
+                      Account Number
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      End Date
+                      Bank
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Status
@@ -267,52 +274,43 @@ export default function SessionsManagementPage() {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {sessions.map((session) => (
-                    <tr key={session.id} className="hover:bg-gray-50">
+                  {accounts.map((account) => (
+                    <tr key={account.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
-                          {session.isCurrent && (
+                          {account.isPrimary && (
                             <CheckCircle className="h-4 w-4 text-green-600 mr-2" />
                           )}
-                          <span className="font-medium text-gray-900">{session.name}</span>
+                          <span className="font-medium text-gray-900">{account.accountName}</span>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                        {new Date(session.startDate).toLocaleDateString()}
+                        {account.accountNumber}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                        {new Date(session.endDate).toLocaleDateString()}
+                        {account.bankName}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        {session.isCurrent ? (
+                        {account.isPrimary ? (
                           <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
-                            Current
+                            Primary
                           </span>
                         ) : (
                           <span className="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">
-                            Inactive
+                            Secondary
                           </span>
                         )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        <div className="flex space-x-2">
-                          {!session.isCurrent && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleSetCurrent(session.id)}
-                            >
-                              Set Current
-                            </Button>
-                          )}
+                        {!account.isPrimary && (
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => handleEdit(session)}
+                            onClick={() => handleSetPrimary(account.id)}
                           >
-                            <Edit className="h-4 w-4" />
+                            Set as Primary
                           </Button>
-                        </div>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -328,9 +326,7 @@ export default function SessionsManagementPage() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between p-6 border-b">
-              <h2 className="text-xl font-bold text-gray-900">
-                {editingSession ? 'Edit Academic Session' : 'Add Academic Session'}
-              </h2>
+              <h2 className="text-xl font-bold text-gray-900">Add Business Account</h2>
               <button
                 onClick={() => {
                   setShowModal(false)
@@ -344,40 +340,62 @@ export default function SessionsManagementPage() {
 
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="name">Session Name *</Label>
+                <Label htmlFor="bankCode">Bank *</Label>
+                <select
+                  id="bankCode"
+                  value={formData.bankCode}
+                  onChange={(e) => {
+                    const selectedBank = banks.find(bank => bank.code === e.target.value)
+                    setFormData({ 
+                      ...formData, 
+                      bankCode: e.target.value,
+                      bankName: selectedBank?.name || ''
+                    })
+                  }}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-offset-2"
+                  required
+                >
+                  <option value="">Select Bank</option>
+                  {banks.map((bank) => (
+                    <option key={bank.code} value={bank.code}>
+                      {bank.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="accountNumber">Account Number *</Label>
                 <Input
-                  id="name"
+                  id="accountNumber"
                   type="text"
-                  placeholder="e.g., 2023/2024 - First Term"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  placeholder="0123456789"
+                  maxLength={10}
+                  value={formData.accountNumber}
+                  onChange={(e) => setFormData({ ...formData, accountNumber: e.target.value })}
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="accountName">Account Name *</Label>
+                <Input
+                  id="accountName"
+                  type="text"
+                  placeholder="School Name"
+                  value={formData.accountName}
+                  onChange={(e) => setFormData({ ...formData, accountName: e.target.value })}
                   required
                 />
                 <p className="text-xs text-gray-500">
-                  Format: YYYY/YYYY - Term Name (e.g., 2023/2024 - First Term)
+                  Must match the name on your bank account
                 </p>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="startDate">Start Date *</Label>
-                <Input
-                  id="startDate"
-                  type="date"
-                  value={formData.startDate}
-                  onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="endDate">End Date *</Label>
-                <Input
-                  id="endDate"
-                  type="date"
-                  value={formData.endDate}
-                  onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
-                  required
-                />
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                <p className="text-xs text-amber-800">
+                  <strong>Note:</strong> Account will be verified with Paystack before activation.
+                </p>
               </div>
 
               <div className="flex space-x-3 pt-4">
@@ -393,7 +411,7 @@ export default function SessionsManagementPage() {
                   Cancel
                 </Button>
                 <Button type="submit" className="flex-1" disabled={loading}>
-                  {loading ? 'Saving...' : editingSession ? 'Update' : 'Create'}
+                  {loading ? 'Adding...' : 'Add Account'}
                 </Button>
               </div>
             </form>

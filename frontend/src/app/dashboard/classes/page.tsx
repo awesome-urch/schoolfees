@@ -184,6 +184,9 @@ export default function ClassesManagementPage() {
             <Link href="/dashboard/payments" className="py-4 px-2 border-b-2 border-transparent text-gray-600 hover:text-gray-900">
               Payments
             </Link>
+            <Link href="/dashboard/accounts" className="py-4 px-2 border-b-2 border-transparent text-gray-600 hover:text-gray-900">
+              Accounts
+            </Link>
           </div>
         </div>
       </nav>

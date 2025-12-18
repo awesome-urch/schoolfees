@@ -27,6 +27,12 @@ export class BusinessAccount {
   @Column({ name: 'is_verified', default: false })
   isVerified: boolean;
 
+  @Column({ name: 'subaccount_code', nullable: true })
+  subaccountCode: string;
+
+  @Column({ name: 'recipient_code', nullable: true })
+  recipientCode: string;
+
   @ManyToOne(() => School, school => school.businessAccounts)
   @JoinColumn({ name: 'school_id' })
   school: School;
