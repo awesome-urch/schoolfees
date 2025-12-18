@@ -6,7 +6,7 @@
 
 1. **Student visits payment page**: `/student/pay`
    - ✅ No authentication required (public access)
-   - ✅ Searches and selects school from dropdown
+   - ✅ Searches and selects school from dropdown 
    - ✅ Enters admission number
    - ✅ System finds student and fetches available fees
 
