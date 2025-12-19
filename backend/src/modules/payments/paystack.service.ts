@@ -97,6 +97,8 @@ export class PaystackService {
 
   async resolveAccountNumber(accountNumber: string, bankCode: string) {
     try {
+      console.log('Resolving account:', { accountNumber, bankCode });
+      
       const response = await axios.get(
         `${this.baseUrl}/bank/resolve?account_number=${accountNumber}&bank_code=${bankCode}`,
         {
@@ -106,9 +108,12 @@ export class PaystackService {
         },
       );
 
+      console.log('Account resolution response:', response.data);
       return response.data;
     } catch (error) {
-      throw new Error('Failed to resolve account number');
+      console.error('Account resolution error:', error.response?.data || error.message);
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to resolve account number';
+      throw new Error(`Failed to resolve account number: ${errorMessage}`);
     }
   }
 
@@ -144,6 +149,8 @@ export class PaystackService {
     percentage_charge: number;
   }) {
     try {
+      console.log('Creating Paystack subaccount:', data);
+      
       const response = await axios.post(
         `${this.baseUrl}/subaccount`,
         {
@@ -160,9 +167,12 @@ export class PaystackService {
         },
       );
 
+      console.log('Subaccount creation response:', response.data);
       return response.data;
     } catch (error) {
-      throw new Error(error.response?.data?.message || 'Failed to create subaccount');
+      console.error('Subaccount creation error:', error.response?.data || error.message);
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to create subaccount';
+      throw new Error(`Failed to create Paystack subaccount: ${errorMessage}`);
     }
   }
 
