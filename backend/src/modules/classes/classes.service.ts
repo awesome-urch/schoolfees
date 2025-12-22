@@ -50,4 +50,36 @@ export class ClassesService {
 
     return classEntity;
   }
+
+  async update(id: number, schoolId: number, updateClassDto: Partial<CreateClassDto>) {
+    const classEntity = await this.classRepo.findOne({
+      where: { id, school: { id: schoolId } },
+    });
+
+    if (!classEntity) {
+      throw new NotFoundException('Class not found');
+    }
+
+    // Update only the fields that are provided
+    Object.assign(classEntity, updateClassDto);
+
+    return this.classRepo.save(classEntity);
+  }
+
+  async remove(id: number, schoolId: number) {
+    const classEntity = await this.classRepo.findOne({
+      where: { id, school: { id: schoolId } },
+    });
+
+    if (!classEntity) {
+      throw new NotFoundException('Class not found');
+    }
+
+    await this.classRepo.remove(classEntity);
+
+    return { 
+      message: 'Class deleted successfully',
+      id,
+    };
+  }
 }

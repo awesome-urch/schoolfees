@@ -70,9 +70,9 @@ export default function ClassesManagementPage() {
 
     try {
       if (editingClass) {
-        await api.patch(`/classes/${editingClass.id}`, {
-          ...formData,
-          schoolId: parseInt(selectedSchool),
+        await api.patch(`/classes/${editingClass.id}/school/${selectedSchool}`, {
+          name: formData.name,
+          description: formData.description,
         })
         alert('Class updated successfully!')
       } else {
@@ -102,10 +102,10 @@ export default function ClassesManagementPage() {
   }
 
   const handleDelete = async (classId: number) => {
-    if (!confirm('Are you sure you want to delete this class?')) return
+    if (!confirm('Are you sure you want to delete this class? Students in this class will have their class unassigned.')) return
 
     try {
-      await api.delete(`/classes/${classId}`)
+      await api.delete(`/classes/${classId}/school/${selectedSchool}`)
       alert('Class deleted successfully!')
       fetchClasses(parseInt(selectedSchool))
     } catch (error: any) {

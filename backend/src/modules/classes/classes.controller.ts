@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Patch, Delete, UseGuards } from '@nestjs/common';
 import { ClassesService } from './classes.service';
 import { CreateClassDto } from './dto/create-class.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -26,5 +26,21 @@ export class ClassesController {
   @Roles('school_owner', 'school_staff')
   findOne(@Param('id') id: string, @Param('schoolId') schoolId: string) {
     return this.classesService.findOne(+id, +schoolId);
+  }
+
+  @Patch(':id/school/:schoolId')
+  @Roles('school_owner', 'school_staff')
+  update(
+    @Param('id') id: string,
+    @Param('schoolId') schoolId: string,
+    @Body() updateClassDto: Partial<CreateClassDto>,
+  ) {
+    return this.classesService.update(+id, +schoolId, updateClassDto);
+  }
+
+  @Delete(':id/school/:schoolId')
+  @Roles('school_owner', 'school_staff')
+  remove(@Param('id') id: string, @Param('schoolId') schoolId: string) {
+    return this.classesService.remove(+id, +schoolId);
   }
 }
