@@ -17,7 +17,7 @@ export class Class {
   @Column({ type: 'text', nullable: true })
   description: string;
 
-  @ManyToOne(() => School, school => school.classes)
+  @ManyToOne(() => School, school => school.classes, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'school_id' })
   school: School;
 

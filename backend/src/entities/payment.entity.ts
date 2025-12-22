@@ -39,19 +39,19 @@ export class Payment {
   @Column({ name: 'paid_at', type: 'timestamp', nullable: true })
   paidAt: Date;
 
-  @ManyToOne(() => School, school => school.payments)
+  @ManyToOne(() => School, school => school.payments, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'school_id' })
   school: School;
 
-  @ManyToOne(() => Student, student => student.payments)
+  @ManyToOne(() => Student, student => student.payments, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'student_id' })
   student: Student;
 
-  @ManyToOne(() => FeeType, feeType => feeType.payments)
+  @ManyToOne(() => FeeType, feeType => feeType.payments, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'fee_type_id' })
   feeType: FeeType;
 
-  @ManyToOne(() => AcademicSession, session => session.payments)
+  @ManyToOne(() => AcademicSession, session => session.payments, { onDelete: 'SET NULL' })
   @JoinColumn({ name: 'session_id' })
   session: AcademicSession;
 

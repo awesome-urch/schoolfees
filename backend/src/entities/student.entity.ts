@@ -53,11 +53,11 @@ export class Student {
   @Column({ name: 'is_active', default: true })
   isActive: boolean;
 
-  @ManyToOne(() => School, school => school.students)
+  @ManyToOne(() => School, school => school.students, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'school_id' })
   school: School;
 
-  @ManyToOne(() => Class, classEntity => classEntity.students)
+  @ManyToOne(() => Class, classEntity => classEntity.students, { onDelete: 'SET NULL' })
   @JoinColumn({ name: 'class_id' })
   class: Class;
 

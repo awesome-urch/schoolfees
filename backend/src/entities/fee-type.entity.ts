@@ -30,15 +30,15 @@ export class FeeType {
   @Column({ name: 'is_active', default: true })
   isActive: boolean;
 
-  @ManyToOne(() => School, school => school.feeTypes)
+  @ManyToOne(() => School, school => school.feeTypes, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'school_id' })
   school: School;
 
-  @ManyToOne(() => AcademicSession, session => session.feeTypes)
+  @ManyToOne(() => AcademicSession, session => session.feeTypes, { onDelete: 'SET NULL' })
   @JoinColumn({ name: 'session_id' })
   session: AcademicSession;
 
-  @ManyToOne(() => Class, classEntity => classEntity.feeTypes)
+  @ManyToOne(() => Class, classEntity => classEntity.feeTypes, { onDelete: 'SET NULL' })
   @JoinColumn({ name: 'class_id' })
   class: Class;
 
