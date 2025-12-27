@@ -22,8 +22,7 @@ export default function StudentsManagementPage() {
   const [editingStudent, setEditingStudent] = useState<any>(null)
   const [uploadFile, setUploadFile] = useState<File | null>(null)
   const [formData, setFormData] = useState({
-    schoolId: '',
-    classId: '',
+        classId: '',
     admissionNumber: '',
     firstName: '',
     lastName: '',
@@ -95,16 +94,24 @@ export default function StudentsManagementPage() {
     setLoading(true)
 
     try {
-      const payload = {
-        ...formData,
-        schoolId: parseInt(selectedSchool),
-        classId: formData.classId ? parseInt(formData.classId) : null,
-      }
-
+      let payload: any
       if (editingStudent) {
+        const { gender, ...rest } = formData
+        payload = {
+          ...rest,
+          classId: formData.classId ? parseInt(formData.classId) : null,
+        }
+        if (gender) payload.gender = gender;
         await api.patch(`/students/${editingStudent.id}/school/${selectedSchool}`, payload)
         alert('Student updated successfully!')
       } else {
+        const { gender, ...rest } = formData
+        payload = {
+          ...rest,
+          schoolId: parseInt(selectedSchool),
+          classId: formData.classId ? parseInt(formData.classId) : null,
+        }
+        if (gender) payload.gender = gender;
         await api.post('/students', payload)
         alert('Student created successfully!')
       }
@@ -148,14 +155,13 @@ export default function StudentsManagementPage() {
   const handleEdit = (student: any) => {
     setEditingStudent(student)
     setFormData({
-      schoolId: student.schoolId,
-      classId: student.classId || '',
+            classId: student.classId || '',
       admissionNumber: student.admissionNumber,
       firstName: student.firstName,
       lastName: student.lastName,
       otherNames: student.otherNames || '',
       dateOfBirth: student.dateOfBirth?.split('T')[0] || '',
-      gender: student.gender,
+      gender: student.gender || 'male',
       email: student.email || '',
       phone: student.phone || '',
       parentName: student.parentName,
@@ -180,8 +186,7 @@ export default function StudentsManagementPage() {
 
   const resetForm = () => {
     setFormData({
-      schoolId: '',
-      classId: '',
+            classId: '',
       admissionNumber: '',
       firstName: '',
       lastName: '',
