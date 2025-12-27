@@ -9,6 +9,7 @@ import { AcademicSession } from '../../entities/academic-session.entity';
 import { BusinessAccount } from '../../entities/business-account.entity';
 import { PaystackService } from './paystack.service';
 import { InitializePaymentDto } from './dto/initialize-payment.dto';
+import { CreateManualPaymentDto } from './dto/create-manual-payment.dto';
 
 @Injectable()
 export class PaymentsService {
@@ -185,6 +186,36 @@ export class PaymentsService {
       relations: ['feeType', 'session'],
       order: { createdAt: 'DESC' },
     });
+  }
+
+  async createManualPayment(dto: CreateManualPaymentDto) {
+    const { schoolId, studentId, feeTypeId, amount, paymentDate, reference } = dto;
+
+    const school = await this.schoolRepo.findOne({ where: { id: schoolId } });
+    if (!school) throw new NotFoundException('School not found');
+
+    const student = await this.studentRepo.findOne({ where: { id: studentId, school: { id: schoolId } } });
+    if (!student) throw new NotFoundException('Student not found');
+
+    const feeType = await this.feeTypeRepo.findOne({ where: { id: feeTypeId, school: { id: schoolId } }, relations: ['session'] });
+    if (!feeType) throw new NotFoundException('Fee type not found');
+
+    // optional: validate amount matches feeType.amount
+
+    const payment = this.paymentRepo.create({
+      school,
+      student,
+      feeType,
+      session: feeType.session,
+      amount,
+      reference: reference || `MAN-${Date.now()}-${studentId}`,
+      status: 'successful',
+      paymentMethod: 'manual',
+      paidAt: paymentDate ? new Date(paymentDate) : new Date(),
+    });
+
+    await this.paymentRepo.save(payment);
+    return { message: 'Manual payment recorded', payment };
   }
 
   async getPaymentStats(schoolId: number) {

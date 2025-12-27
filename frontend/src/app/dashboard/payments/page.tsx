@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { GraduationCap, LogOut, DollarSign, CheckCircle, XCircle, Clock, Search } from 'lucide-react'
+import { GraduationCap, LogOut, DollarSign, CheckCircle, XCircle, Clock, Search, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -19,6 +19,17 @@ export default function PaymentsPage() {
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [filteredPayments, setFilteredPayments] = useState<any[]>([])
+  // manual payment state
+  const [students, setStudents] = useState<any[]>([])
+  const [feeTypes, setFeeTypes] = useState<any[]>([])
+  const [showManualModal, setShowManualModal] = useState(false)
+  const [manualForm, setManualForm] = useState({
+    studentId: '',
+    feeTypeId: '',
+    amount: '',
+    paymentDate: '',
+    reference: '',
+  })
 
   useEffect(() => {
     const userData = localStorage.getItem('user')
@@ -40,6 +51,7 @@ export default function PaymentsPage() {
         setSelectedSchool(response.data[0].id.toString())
         fetchPayments(response.data[0].id)
         fetchStats(response.data[0].id)
+        fetchRefs(response.data[0].id)
       }
     } catch (error) {
       console.error('Failed to fetch schools:', error)
@@ -67,15 +79,50 @@ export default function PaymentsPage() {
     }
   }
 
+  const fetchRefs = async (schoolId: number) => {
+    try {
+      const [stRes, ftRes] = await Promise.all([
+        api.get(`/students/school/${schoolId}`),
+        api.get(`/fees/school/${schoolId}`),
+      ])
+      setStudents(stRes.data)
+      setFeeTypes(ftRes.data)
+    } catch (error) {
+      console.error('Failed to fetch dropdown data:', error)
+    }
+  }
+
+  const handleManualSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    try {
+      await api.post('/payments/manual', {
+        schoolId: +selectedSchool,
+        studentId: +manualForm.studentId,
+        feeTypeId: +manualForm.feeTypeId,
+        amount: +manualForm.amount,
+        paymentDate: manualForm.paymentDate || undefined,
+        reference: manualForm.reference || undefined,
+      })
+      alert('Payment recorded!')
+      setShowManualModal(false)
+      setManualForm({ studentId: '', feeTypeId: '', amount: '', paymentDate: '', reference: '' })
+      fetchPayments(+selectedSchool)
+      fetchStats(+selectedSchool)
+    } catch (error: any) {
+      alert(error.response?.data?.message || 'Failed to record payment')
+    }
+  }
+
   const handleSchoolChange = (schoolId: string) => {
     setSelectedSchool(schoolId)
     fetchPayments(parseInt(schoolId))
     fetchStats(parseInt(schoolId))
+    fetchRefs(parseInt(schoolId))
   }
 
   useEffect(() => {
     if (searchTerm) {
-      const filtered = payments.filter(p =>
+      const filtered = payments.filter((p: any) =>
         p.reference.toLowerCase().includes(searchTerm.toLowerCase()) ||
         p.student?.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         p.student?.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -211,6 +258,14 @@ export default function PaymentsPage() {
           </div>
         )}
 
+        {/* Manual Payment Button */}
+        <div className="flex justify-end mb-4">
+          <Button onClick={() => { fetchRefs(+selectedSchool); setShowManualModal(true) }}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Manual Payment
+          </Button>
+        </div>
+
         {/* Stats */}
         {stats && (
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
@@ -323,6 +378,99 @@ export default function PaymentsPage() {
             </table>
           </div>
         </div>
+
+        {/* Manual Payment Modal */}
+        {showManualModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-lg max-w-md w-full">
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-2xl font-bold text-gray-900">Add Manual Payment</h2>
+                  <button onClick={() => setShowManualModal(false)} className="text-gray-400 hover:text-gray-600">
+                    <XCircle className="h-6 w-6" />
+                  </button>
+                </div>
+
+                <form onSubmit={handleManualSubmit} className="space-y-4">
+                  <div>
+                    <Label htmlFor="student">Student *</Label>
+                    <select
+                      id="student"
+                      required
+                      value={manualForm.studentId}
+                      onChange={(e) => setManualForm({ ...manualForm, studentId: e.target.value })}
+                      className="mt-2 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    >
+                      <option value="">Select student</option>
+                      {students.map((s:any) => (
+                        <option key={s.id} value={s.id}>
+                          {s.admissionNumber} - {s.firstName} {s.lastName}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="feeType">Fee Type *</Label>
+                    <select
+                      id="feeType"
+                      required
+                      value={manualForm.feeTypeId}
+                      onChange={(e) => setManualForm({ ...manualForm, feeTypeId: e.target.value })}
+                      className="mt-2 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    >
+                      <option value="">Select fee</option>
+                      {feeTypes.map((f:any) => (
+                        <option key={f.id} value={f.id}>{f.name} - ₦{f.amount}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="amount">Amount *</Label>
+                    <Input
+                      id="amount"
+                      type="number"
+                      required
+                      value={manualForm.amount}
+                      onChange={(e) => setManualForm({ ...manualForm, amount: e.target.value })}
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="paymentDate">Payment Date</Label>
+                    <Input
+                      id="paymentDate"
+                      type="date"
+                      value={manualForm.paymentDate}
+                      onChange={(e) => setManualForm({ ...manualForm, paymentDate: e.target.value })}
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="reference">Reference</Label>
+                    <Input
+                      id="reference"
+                      value={manualForm.reference}
+                      onChange={(e) => setManualForm({ ...manualForm, reference: e.target.value })}
+                      placeholder="Optional reference"
+                    />
+                  </div>
+
+                  <div className="flex gap-4 pt-4">
+                    <Button type="button" variant="outline" className="flex-1" onClick={() => setShowManualModal(false)}>
+                      Cancel
+                    </Button>
+                    <Button type="submit" className="flex-1">
+                      Save Payment
+                    </Button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        )}
+
       </main>
     </div>
   )
