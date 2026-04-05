@@ -27,7 +27,7 @@ export class AuthService {
   ) {}
 
   async register(registerDto: RegisterDto) {
-    const { email, password, fullName, phone } = registerDto;
+    const { email, password, fullName, phone, schoolName,schoolCode} = registerDto;
 
     // Check if email already exists
     const existing = await this.schoolOwnerRepo.findOne({ where: { email } });
@@ -40,6 +40,8 @@ export class AuthService {
 
     // Create school owner
     const schoolOwner = this.schoolOwnerRepo.create({
+      name: schoolName,
+      code: schoolCode,
       email,
       password: hashedPassword,
       fullName,

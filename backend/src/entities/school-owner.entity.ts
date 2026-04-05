@@ -18,6 +18,12 @@ export class SchoolOwner {
   @Column({ nullable: true })
   phone: string;
 
+  @Column({ unique: true })
+  code: string;
+
+  @Column()
+  name: string;
+
   @Column({ name: 'is_approved', default: false })
   isApproved: boolean;
 

@@ -15,6 +15,8 @@ export default function RegisterPage() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
   const [formData, setFormData] = useState({
+     schoolName: '',
+    schoolCode: '',
     email: '',
     password: '',
     confirmPassword: '',
@@ -35,6 +37,8 @@ export default function RegisterPage() {
 
     try {
       await api.post('/auth/register', {
+        schoolName: formData.schoolName,
+        schoolCode: formData.schoolCode,
         email: formData.email,
         password: formData.password,
         fullName: formData.fullName,
@@ -92,7 +96,34 @@ export default function RegisterPage() {
                 {error}
               </div>
             )}
-
+            <div>
+              <label htmlFor="schoolName" className="block text-sm font-medium text-gray-700">
+                School Name
+              </label>
+              <input
+                id="schoolName"
+                name="schoolName"
+                type="text"
+                required
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                value={formData.schoolName}
+                onChange={(e) => setFormData({ ...formData, schoolName: e.target.value })}
+              />
+            </div>
+            <div>
+              <label htmlFor="schoolCode" className="block text-sm font-medium text-gray-700">
+                School Code
+              </label>
+              <input
+                id="schoolCode"
+                name="schoolCode"
+                type="text"
+                required
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                value={formData.schoolCode}
+                onChange={(e) => setFormData({ ...formData, schoolCode: e.target.value })}
+              />
+            </div>
             <div className="space-y-2">
               <Label htmlFor="fullName">Full Name</Label>
               <Input
