@@ -19,4 +19,12 @@ export class RegisterDto {
   @IsString()
   @IsOptional()
   phone?: string;
+
+  @IsString()
+  @IsNotEmpty()
+  schoolName: string;
+
+  @IsString()
+  @IsNotEmpty()
+  schoolCode: string;
 }
