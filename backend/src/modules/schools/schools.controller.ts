@@ -17,6 +17,11 @@ export class SchoolsController {
     return this.schoolsService.findAllPublic();
   }
 
+  @Get('by-owner/:ownerId')
+  findByOwner(@Param('ownerId') ownerId: string) {
+    return this.schoolsService.findByOwner(+ownerId);
+  }
+
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('school_owner')

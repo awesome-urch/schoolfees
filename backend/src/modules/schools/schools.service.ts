@@ -71,6 +71,19 @@ export class SchoolsService {
     return school;
   }
 
+  async findByOwner(ownerId: number) {
+    const school = await this.schoolRepo.findOne({
+      where: { ownerId },
+      relations: ['owner'],
+    });
+
+    if (!school) {
+      throw new NotFoundException('School not found for this owner');
+    }
+
+    return school;
+  }
+
   async update(id: number, ownerId: number, updateSchoolDto: UpdateSchoolDto) {
     const school = await this.findOne(id, ownerId);
     

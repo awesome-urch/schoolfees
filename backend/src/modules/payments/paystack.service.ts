@@ -17,6 +17,7 @@ export class PaystackService {
     reference: string;
     metadata?: any;
     subaccountCode?: string;
+    callbackUrl?: string;
   }) {
     try {
       // Calculate Paystack transaction fee (1.5% + ₦100, capped at ₦2,000)
@@ -37,7 +38,9 @@ export class PaystackService {
         amount: Math.round(totalAmount * 100), // Convert to kobo
         reference: data.reference,
         metadata: data.metadata,
-        callback_url: this.configService.get('FRONTEND_URL') + '/payment/verify',
+        callback_url:
+          data.callbackUrl ||
+          `${this.configService.get('FRONTEND_URL')}/payment/verify`,
         bearer: 'account', // School (merchant) doesn't pay extra fees
       };
 

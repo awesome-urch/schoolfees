@@ -1,6 +1,7 @@
 import { Controller, Get, Post, Body, Param, Query, UseGuards } from '@nestjs/common';
 import { PaymentsService } from './payments.service';
 import { InitializePaymentDto } from './dto/initialize-payment.dto';
+import { InitializeApplicationPaymentDto } from './dto/initialize-application-payment.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -15,9 +16,23 @@ export class PaymentsController {
     return this.paymentsService.initializePayment(initializePaymentDto);
   }
 
+  @Post('initialize-application')
+  initializeApplicationPayment(
+    @Body() initializeApplicationPaymentDto: InitializeApplicationPaymentDto,
+  ) {
+    return this.paymentsService.initializeApplicationPayment(
+      initializeApplicationPaymentDto,
+    );
+  }
+
   @Get('verify/:reference')
   verifyPayment(@Param('reference') reference: string) {
     return this.paymentsService.verifyPayment(reference);
+  }
+
+  @Get('verify-application/:reference')
+  verifyApplicationPayment(@Param('reference') reference: string) {
+    return this.paymentsService.verifyApplicationPayment(reference);
   }
 
   @Get('school/:schoolId')

@@ -5,6 +5,7 @@ import { Repository } from 'typeorm';
 import * as bcrypt from 'bcryptjs';
 import { ConfigService } from '@nestjs/config';
 import { SchoolOwner } from '../../entities/school-owner.entity';
+import { School } from '../../entities/school.entity';
 import { SchoolStaff } from '../../entities/school-staff.entity';
 import { SuperAdmin } from '../../entities/super-admin.entity';
 import { RefreshToken } from '../../entities/refresh-token.entity';
@@ -16,6 +17,8 @@ export class AuthService {
   constructor(
     @InjectRepository(SchoolOwner)
     private schoolOwnerRepo: Repository<SchoolOwner>,
+    @InjectRepository(School)
+    private schoolRepo: Repository<School>,
     @InjectRepository(SchoolStaff)
     private schoolStaffRepo: Repository<SchoolStaff>,
     @InjectRepository(SuperAdmin)
@@ -52,9 +55,20 @@ export class AuthService {
 
     await this.schoolOwnerRepo.save(schoolOwner);
 
+    const school = this.schoolRepo.create({
+      ownerId: schoolOwner.id,
+      name: schoolName,
+      phone,
+      email,
+      isActive: true,
+    });
+
+    await this.schoolRepo.save(school);
+
     return {
       message: 'Registration successful. Please wait for admin approval.',
       userId: schoolOwner.id,
+      schoolId: school.id,
     };
   }
 

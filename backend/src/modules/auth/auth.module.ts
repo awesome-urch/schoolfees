@@ -7,13 +7,14 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { SchoolOwner } from '../../entities/school-owner.entity';
+import { School } from '../../entities/school.entity';
 import { SchoolStaff } from '../../entities/school-staff.entity';
 import { SuperAdmin } from '../../entities/super-admin.entity';
 import { RefreshToken } from '../../entities/refresh-token.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([SchoolOwner, SchoolStaff, SuperAdmin, RefreshToken]),
+    TypeOrmModule.forFeature([SchoolOwner, School, SchoolStaff, SuperAdmin, RefreshToken]),
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       imports: [ConfigModule],

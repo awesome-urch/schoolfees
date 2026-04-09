@@ -9,6 +9,7 @@ import { AcademicSession } from '../../entities/academic-session.entity';
 import { BusinessAccount } from '../../entities/business-account.entity';
 import { PaystackService } from './paystack.service';
 import { InitializePaymentDto } from './dto/initialize-payment.dto';
+import { InitializeApplicationPaymentDto } from './dto/initialize-application-payment.dto';
 import { CreateManualPaymentDto } from './dto/create-manual-payment.dto';
 
 @Injectable()
@@ -149,6 +150,77 @@ export class PaymentsService {
       await this.paymentRepo.save(payment);
       throw new BadRequestException('Payment verification failed');
     }
+  }
+
+  async initializeApplicationPayment(dto: InitializeApplicationPaymentDto) {
+    const { schoolId, amount, email, callbackUrl, metadata } = dto;
+
+    const school = await this.schoolRepo.findOne({ where: { id: schoolId } });
+    if (!school) {
+      throw new NotFoundException('School not found');
+    }
+
+    const primaryAccount = await this.businessAccountRepo.findOne({
+      where: { school: { id: schoolId }, isPrimary: true },
+    });
+
+    if (!primaryAccount) {
+      throw new NotFoundException(
+        'No business account configured for this school. Please contact your school administrator.',
+      );
+    }
+
+    if (!primaryAccount.subaccountCode) {
+      throw new BadRequestException(
+        'School business account not properly configured. Please contact your school administrator.',
+      );
+    }
+
+    const reference = `APP-${Date.now()}-${schoolId}`;
+
+    const percentageFee = amount * 0.015;
+    const flatFee = 100;
+    let transactionFee = percentageFee + flatFee;
+    if (transactionFee > 2000) {
+      transactionFee = 2000;
+    }
+    const totalAmount = amount + transactionFee;
+
+    const paystackResponse = await this.paystackService.initializePayment({
+      email,
+      amount,
+      reference,
+      subaccountCode: primaryAccount.subaccountCode,
+      callbackUrl,
+      metadata: {
+        schoolId,
+        paymentType: 'application',
+        ...metadata,
+      },
+    });
+
+    return {
+      reference,
+      feeAmount: amount,
+      transactionFee: Math.round(transactionFee),
+      totalAmount: Math.round(totalAmount),
+      authorizationUrl: paystackResponse.data.authorization_url,
+      accessCode: paystackResponse.data.access_code,
+    };
+  }
+
+  async verifyApplicationPayment(reference: string) {
+    const paystackResponse = await this.paystackService.verifyPayment(reference);
+
+    if (paystackResponse.data.status !== 'success') {
+      throw new BadRequestException('Payment verification failed');
+    }
+
+    return {
+      message: 'Application payment verified successfully',
+      status: 'success',
+      data: paystackResponse.data,
+    };
   }
 
   async findAll(schoolId: number, status?: string) {
