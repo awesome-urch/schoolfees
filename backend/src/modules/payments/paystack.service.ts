@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
 
@@ -19,6 +19,10 @@ export class PaystackService {
     subaccountCode?: string;
     callbackUrl?: string;
   }) {
+    if (!this.secretKey) {
+      throw new BadRequestException('PAYSTACK_SECRET_KEY is not configured');
+    }
+
     try {
       // Calculate Paystack transaction fee (1.5% + ₦100, capped at ₦2,000)
       const percentageFee = data.amount * 0.015; // 1.5%
@@ -62,12 +66,20 @@ export class PaystackService {
       );
 
       return response.data;
-    } catch (error) {
-      throw new Error(error.response?.data?.message || 'Payment initialization failed');
+    } catch (error: any) {
+      const message =
+        error?.response?.data?.message ||
+        error?.message ||
+        'Payment initialization failed';
+      throw new BadRequestException(`Paystack initialization failed: ${message}`);
     }
   }
 
   async verifyPayment(reference: string) {
+    if (!this.secretKey) {
+      throw new BadRequestException('PAYSTACK_SECRET_KEY is not configured');
+    }
+
     try {
       const response = await axios.get(
         `${this.baseUrl}/transaction/verify/${reference}`,
@@ -79,8 +91,12 @@ export class PaystackService {
       );
 
       return response.data;
-    } catch (error) {
-      throw new Error(error.response?.data?.message || 'Payment verification failed');
+    } catch (error: any) {
+      const message =
+        error?.response?.data?.message ||
+        error?.message ||
+        'Payment verification failed';
+      throw new BadRequestException(`Paystack verification failed: ${message}`);
     }
   }
 
