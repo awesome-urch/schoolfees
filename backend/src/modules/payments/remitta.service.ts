@@ -39,7 +39,7 @@ export class RemittaService {
 
   /**
    * Remita Connect Gateway charge.
-   * POST {gateway}/api/v1/payment/charge
+   * POST {gateway}/api/v1/payment-engine/payment/charge
    * Returns the hosted paymentLink the payer is redirected to.
    */
   async charge(data: {
@@ -59,7 +59,7 @@ export class RemittaService {
 
     try {
       const response = await axios.post(
-        `${this.gatewayBaseUrl}/api/v1/payment/charge`,
+        `${this.gatewayBaseUrl}/api/v1/payment-engine/payment/charge`,
         {
           firstName,
           lastName,
