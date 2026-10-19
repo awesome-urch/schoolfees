@@ -9,11 +9,12 @@ import { BusinessAccount } from '../../entities/business-account.entity';
 import { PaymentsController } from './payments.controller';
 import { PaymentsService } from './payments.service';
 import { PaystackService } from './paystack.service';
+import { RemittaService } from './remitta.service';
 
 @Module({
   imports: [TypeOrmModule.forFeature([Payment, Student, FeeType, School, AcademicSession, BusinessAccount])],
   controllers: [PaymentsController],
-  providers: [PaymentsService, PaystackService],
-  exports: [PaymentsService, PaystackService],
+  providers: [PaymentsService, PaystackService, RemittaService],
+  exports: [PaymentsService, PaystackService, RemittaService],
 })
 export class PaymentsModule {}

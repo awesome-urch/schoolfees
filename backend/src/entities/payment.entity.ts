@@ -36,6 +36,9 @@ export class Payment {
   @Column({ name: 'paystack_reference', nullable: true })
   paystackReference: string;
 
+  @Column({ name: 'remitta_rrr', nullable: true })
+  remittaRrr: string;
+
   @Column({ name: 'paid_at', type: 'timestamp', nullable: true })
   paidAt: Date;
 

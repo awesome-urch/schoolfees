@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Payment } from '../../entities/payment.entity';
@@ -8,6 +9,7 @@ import { School } from '../../entities/school.entity';
 import { AcademicSession } from '../../entities/academic-session.entity';
 import { BusinessAccount } from '../../entities/business-account.entity';
 import { PaystackService } from './paystack.service';
+import { RemittaService } from './remitta.service';
 import { InitializePaymentDto } from './dto/initialize-payment.dto';
 import { InitializeApplicationPaymentDto } from './dto/initialize-application-payment.dto';
 import { CreateManualPaymentDto } from './dto/create-manual-payment.dto';
@@ -28,10 +30,13 @@ export class PaymentsService {
     @InjectRepository(BusinessAccount)
     private businessAccountRepo: Repository<BusinessAccount>,
     private paystackService: PaystackService,
+    private remittaService: RemittaService,
+    private configService: ConfigService,
   ) {}
 
   async initializePayment(initializePaymentDto: InitializePaymentDto) {
     const { schoolId, studentId, feeTypeId, amount, email } = initializePaymentDto;
+    const paymentMethod = initializePaymentDto.paymentMethod || 'paystack';
 
     const student = await this.studentRepo.findOne({
       where: { id: studentId, school: { id: schoolId } },
@@ -52,7 +57,7 @@ export class PaymentsService {
 
     const school = await this.schoolRepo.findOne({ where: { id: schoolId } });
 
-    // CRITICAL: Get school's primary business account for subaccount routing
+    // Get school's primary business account for settlement routing
     const primaryAccount = await this.businessAccountRepo.findOne({
       where: { school: { id: schoolId }, isPrimary: true },
     });
@@ -60,12 +65,6 @@ export class PaymentsService {
     if (!primaryAccount) {
       throw new NotFoundException(
         'No business account configured for this school. Please contact your school administrator.',
-      );
-    }
-
-    if (!primaryAccount.subaccountCode) {
-      throw new BadRequestException(
-        'School business account not properly configured. Please contact your school administrator.',
       );
     }
 
@@ -80,7 +79,7 @@ export class PaymentsService {
       session: feeType.session,
       reference,
       amount,
-      paymentMethod: 'paystack',
+      paymentMethod,
       status: 'pending',
     });
 
@@ -94,6 +93,46 @@ export class PaymentsService {
       transactionFee = 2000;
     }
     const totalAmount = amount + transactionFee;
+
+    if (paymentMethod === 'remitta') {
+      // The account's remitta_api_key holds the school's Connect Gateway
+      // secretKey; falls back to the platform REMITTA_SECRET_KEY when unset.
+      const remittaCredentials = {
+        secretKey: primaryAccount.remittaApiKey,
+      };
+
+      const responseUrl = `${this.configService.get('FRONTEND_URL')}/payment/verify?reference=${reference}`;
+
+      const charge = await this.remittaService.charge({
+        orderId: reference,
+        amount: totalAmount,
+        payerName: `${student.firstName} ${student.lastName}`,
+        payerEmail: email,
+        payerPhone: student.phone,
+        description: `${feeType.name} payment for ${student.firstName} ${student.lastName}`,
+        returnUrl: responseUrl,
+        credentials: remittaCredentials,
+      });
+
+      payment.remittaRrr = reference;
+      await this.paymentRepo.save(payment);
+
+      return {
+        paymentId: payment.id,
+        reference,
+        feeAmount: amount,
+        transactionFee: Math.round(transactionFee),
+        totalAmount: Math.round(totalAmount),
+        authorizationUrl: charge.paymentLink,
+        accessCode: reference,
+      };
+    }
+
+    if (!primaryAccount.subaccountCode) {
+      throw new BadRequestException(
+        'School business account not properly configured for Paystack. Please contact your school administrator.',
+      );
+    }
 
     // Initialize Paystack payment with subaccount
     // This ensures money goes to SCHOOL'S account, not platform's account
@@ -135,6 +174,44 @@ export class PaymentsService {
       return { message: 'Payment already verified', payment };
     }
 
+    if (payment.paymentMethod === 'remitta') {
+      if (!payment.remittaRrr) {
+        throw new BadRequestException('No Remitta RRR recorded for this payment');
+      }
+
+      const primaryAccount = await this.businessAccountRepo.findOne({
+        where: { school: { id: payment.school.id }, isPrimary: true },
+      });
+
+      const credentials = primaryAccount
+        ? { secretKey: primaryAccount.remittaApiKey }
+        : undefined;
+
+      const statusResponse = await this.remittaService.checkStatus(
+        payment.remittaRrr,
+        credentials,
+      );
+
+      // Remita status "00"/"01" = successful; "021" = RRR generated but not
+      // yet paid (payer may still complete it e.g. at a bank branch), so it
+      // must stay pending rather than being permanently marked failed.
+      if (statusResponse.status === '00' || statusResponse.status === '01') {
+        payment.status = 'successful';
+        payment.paidAt = new Date();
+        await this.paymentRepo.save(payment);
+
+        return { message: 'Payment verified successfully', payment };
+      } else if (statusResponse.status === '021') {
+        return { message: 'Payment is still pending', payment };
+      } else {
+        payment.status = 'failed';
+        await this.paymentRepo.save(payment);
+        throw new BadRequestException(
+          `Payment verification failed: ${statusResponse.message || 'payment not successful'}`,
+        );
+      }
+    }
+
     // Verify with Paystack
     const paystackResponse = await this.paystackService.verifyPayment(reference);
 
@@ -150,6 +227,36 @@ export class PaymentsService {
       await this.paymentRepo.save(payment);
       throw new BadRequestException('Payment verification failed');
     }
+  }
+
+  /**
+   * Remita payment notification webhook. Remita POSTs a JSON array of
+   * payment objects (rrr, orderRef, orderId, type: 'PY', ...) and expects
+   * a plain 'Ok' response; anything else triggers retries.
+   */
+  async handleRemitaWebhook(data: any) {
+    const items: any[] = Array.isArray(data) ? data : [data];
+
+    const refs = items
+      .map(
+        (item) =>
+          item?.orderRef ||
+          item?.orderId ||
+          item?.paymentIdentifier ||
+          item?.rrr ||
+          item?.RRR,
+      )
+      .filter(Boolean);
+
+    for (const ref of refs) {
+      try {
+        await this.verifyPayment(ref);
+      } catch (error: any) {
+        console.error(`Remita webhook verification failed for ${ref}:`, error.message);
+      }
+    }
+
+    return 'Ok';
   }
 
   async initializeApplicationPayment(dto: InitializeApplicationPaymentDto) {

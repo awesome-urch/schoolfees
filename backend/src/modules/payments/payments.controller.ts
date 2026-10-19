@@ -25,6 +25,11 @@ export class PaymentsController {
     );
   }
 
+  @Post('webhook/remita')
+  remitaWebhook(@Body() data: any) {
+    return this.paymentsService.handleRemitaWebhook(data);
+  }
+
   @Get('verify/:reference')
   verifyPayment(@Param('reference') reference: string) {
     return this.paymentsService.verifyPayment(reference);

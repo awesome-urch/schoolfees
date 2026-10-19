@@ -1,4 +1,4 @@
-import { IsNumber, IsNotEmpty, IsString, IsEmail } from 'class-validator';
+import { IsNumber, IsNotEmpty, IsString, IsEmail, IsIn, IsOptional } from 'class-validator';
 
 export class InitializePaymentDto {
   @IsNumber()
@@ -21,7 +21,8 @@ export class InitializePaymentDto {
   @IsNotEmpty()
   email: string;
 
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
+  @IsIn(['paystack', 'remitta'])
   paymentMethod: string = 'paystack';
 }

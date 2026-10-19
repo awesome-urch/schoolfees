@@ -344,8 +344,12 @@ export default function PaymentsPage() {
                     <tr key={payment.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-gray-900">{payment.reference}</div>
+                        <div className="text-xs text-gray-500 capitalize">{payment.paymentMethod}</div>
                         {payment.paystackReference && (
                           <div className="text-xs text-gray-500">{payment.paystackReference}</div>
+                        )}
+                        {payment.remittaRrr && (
+                          <div className="text-xs text-gray-500">RRR: {payment.remittaRrr}</div>
                         )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">

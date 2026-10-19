@@ -33,6 +33,17 @@ export class BusinessAccount {
   @Column({ name: 'recipient_code', nullable: true })
   recipientCode: string;
 
+  // Remitta merchant credentials for this school (used to route Remitta
+  // payments directly to the school's own Remitta merchant profile).
+  @Column({ name: 'remitta_merchant_id', nullable: true })
+  remittaMerchantId: string;
+
+  @Column({ name: 'remitta_api_key', nullable: true })
+  remittaApiKey: string;
+
+  @Column({ name: 'remitta_service_type_id', nullable: true })
+  remittaServiceTypeId: string;
+
   @ManyToOne(() => School, school => school.businessAccounts)
   @JoinColumn({ name: 'school_id' })
   school: School;

@@ -5,6 +5,7 @@ import { BusinessAccount } from '../../entities/business-account.entity';
 import { School } from '../../entities/school.entity';
 import { PaystackService } from '../payments/paystack.service';
 import { CreateAccountDto } from './dto/create-account.dto';
+import { RemittaCredentialsDto } from './dto/remitta-credentials.dto';
 
 @Injectable()
 export class BusinessAccountsService {
@@ -81,6 +82,29 @@ export class BusinessAccountsService {
       where: { school: { id: schoolId } },
       order: { isPrimary: 'DESC', createdAt: 'DESC' },
     });
+  }
+
+  async updateRemittaCredentials(
+    id: number,
+    schoolId: number,
+    dto: RemittaCredentialsDto,
+  ) {
+    const account = await this.accountRepo.findOne({
+      where: { id, school: { id: schoolId } },
+    });
+
+    if (!account) {
+      throw new NotFoundException('Account not found');
+    }
+
+    // Empty merchantId/apiKey means "use the platform's Remita merchant
+    // profile" — the school's serviceTypeId alone routes settlement to the
+    // school's service type on that profile.
+    account.remittaMerchantId = dto.remittaMerchantId || null;
+    account.remittaApiKey = dto.remittaApiKey || null;
+    account.remittaServiceTypeId = dto.remittaServiceTypeId;
+
+    return this.accountRepo.save(account);
   }
 
   async setPrimary(id: number, schoolId: number) {

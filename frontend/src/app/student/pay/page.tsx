@@ -1,14 +1,16 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { GraduationCap, Loader2, CreditCard, Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { publicApi } from '@/lib/api'
 
-export default function StudentPaymentPage() {
+function StudentPaymentContent() {
+  const searchParams = useSearchParams()
   const [step, setStep] = useState(1)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -22,12 +24,37 @@ export default function StudentPaymentPage() {
     admissionNumber: '',
     email: '',
     selectedFeeId: '',
+    paymentMethod: 'paystack',
   })
 
   // Fetch all schools on mount
   useEffect(() => {
     fetchSchools()
   }, [])
+
+  // Prefill school/admission number when arriving via a school's direct link,
+  // e.g. /student/pay?school=5&admission=ADM001
+  useEffect(() => {
+    if (schools.length === 0) return
+
+    const schoolParam = searchParams.get('school')
+    const admissionParam = searchParams.get('admission')
+    const schoolValid = schoolParam && schools.some((s) => s.id === parseInt(schoolParam))
+
+    if (schoolParam || admissionParam) {
+      setFormData((prev) => ({
+        ...prev,
+        schoolId: schoolValid ? schoolParam : prev.schoolId,
+        admissionNumber: admissionParam || prev.admissionNumber,
+      }))
+    }
+
+    // When the link carries both identifiers, resolve the student immediately
+    // so the parent sees the child's name straight away.
+    if (schoolValid && admissionParam && !student) {
+      lookupStudent(schoolParam, admissionParam)
+    }
+  }, [schools, searchParams])
 
   // Filter schools based on search term
   useEffect(() => {
@@ -53,27 +80,46 @@ export default function StudentPaymentPage() {
     }
   }
 
-  const handleFindStudent = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const lookupStudent = async (schoolId: string, admissionNumber: string) => {
     setLoading(true)
     setError('')
 
     try {
       const response = await publicApi.get(
-        `/students/admission/${formData.admissionNumber}/school/${formData.schoolId}`
+        `/students/admission/${encodeURIComponent(admissionNumber.trim())}/school/${schoolId}`
       )
       setStudent(response.data)
 
       // Fetch available fees for this student
-      const feesResponse = await publicApi.get(`/fees/school/${formData.schoolId}`)
+      const feesResponse = await publicApi.get(`/fees/school/${schoolId}`)
       setFees(feesResponse.data)
 
-      setStep(2)
+      return true
     } catch (err: any) {
       setError(err.response?.data?.message || 'Student not found')
+      return false
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleFindStudent = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (student) {
+      setStep(2)
+      return
+    }
+    if (await lookupStudent(formData.schoolId, formData.admissionNumber)) {
+      setStep(2)
+    }
+  }
+
+  const handleResetStudent = () => {
+    setStudent(null)
+    setFees([])
+    setError('')
+    setFormData((prev) => ({ ...prev, schoolId: '', admissionNumber: '', selectedFeeId: '' }))
+    setSchoolSearchTerm('')
   }
 
   const handlePayment = async () => {
@@ -95,7 +141,7 @@ export default function StudentPaymentPage() {
         feeTypeId: parseInt(formData.selectedFeeId),
         amount: Number(selectedFee.amount),
         email: formData.email,
-        paymentMethod: 'paystack',
+        paymentMethod: formData.paymentMethod,
       })
 
       // Redirect to Paystack
@@ -145,6 +191,31 @@ export default function StudentPaymentPage() {
                   </div>
                 )}
 
+                {student ? (
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                    <p className="text-xs font-semibold text-green-700 mb-2">STUDENT FOUND</p>
+                    <p className="text-sm text-gray-900">
+                      <strong>Name:</strong> {student.firstName} {student.lastName}
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      <strong>Admission No:</strong> {student.admissionNumber}
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      <strong>Class:</strong> {student.class?.name || 'Not assigned'}
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      <strong>School:</strong> {student.school?.name}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={handleResetStudent}
+                      className="text-xs text-blue-600 hover:underline mt-2"
+                    >
+                      Not your child? Search again
+                    </button>
+                  </div>
+                ) : (
+                  <>
                 <div className="space-y-2">
                   <Label htmlFor="schoolSearch">Search Your School</Label>
                   <div className="relative">
@@ -196,6 +267,8 @@ export default function StudentPaymentPage() {
                     required
                   />
                 </div>
+                  </>
+                )}
 
                 <div className="space-y-2">
                   <Label htmlFor="email">Email Address</Label>
@@ -261,6 +334,19 @@ export default function StudentPaymentPage() {
                         {fee.name} - ₦{fee.amount.toLocaleString()}
                       </option>
                     ))}
+                  </select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="paymentMethod">Payment Method</Label>
+                  <select
+                    id="paymentMethod"
+                    value={formData.paymentMethod}
+                    onChange={(e) => setFormData({ ...formData, paymentMethod: e.target.value })}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  >
+                    <option value="paystack">Paystack</option>
+                    <option value="remitta">Remitta</option>
                   </select>
                 </div>
 
@@ -337,5 +423,19 @@ export default function StudentPaymentPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function StudentPaymentPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        </div>
+      }
+    >
+      <StudentPaymentContent />
+    </Suspense>
   )
 }

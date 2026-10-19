@@ -18,6 +18,13 @@ export default function BusinessAccountsPage() {
   const [banks, setBanks] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
+  const [showRemittaModal, setShowRemittaModal] = useState(false)
+  const [remittaAccount, setRemittaAccount] = useState<any>(null)
+  const [remittaForm, setRemittaForm] = useState({
+    remittaMerchantId: '',
+    remittaApiKey: '',
+    remittaServiceTypeId: '',
+  })
   const [formData, setFormData] = useState({
     accountNumber: '',
     bankCode: '',
@@ -104,6 +111,41 @@ export default function BusinessAccountsPage() {
         alert('Validation errors:\n' + errorMessage.join('\n'))
       } else {
         alert(errorMessage || 'Failed to add account')
+      }
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const openRemittaModal = (account: any) => {
+    setRemittaAccount(account)
+    setRemittaForm({
+      remittaMerchantId: account.remittaMerchantId || '',
+      remittaApiKey: account.remittaApiKey || '',
+      remittaServiceTypeId: account.remittaServiceTypeId || '',
+    })
+    setShowRemittaModal(true)
+  }
+
+  const handleRemittaSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+
+    try {
+      await api.patch(
+        `/business-accounts/${remittaAccount.id}/school/${selectedSchool}/remitta-credentials`,
+        remittaForm
+      )
+      alert('Remitta credentials saved!')
+      setShowRemittaModal(false)
+      setRemittaAccount(null)
+      fetchAccounts(parseInt(selectedSchool))
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.message
+      if (Array.isArray(errorMessage)) {
+        alert('Validation errors:\n' + errorMessage.join('\n'))
+      } else {
+        alert(errorMessage || 'Failed to save Remitta credentials')
       }
     } finally {
       setLoading(false)
@@ -302,15 +344,24 @@ export default function BusinessAccountsPage() {
                         )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        {!account.isPrimary && (
+                        <div className="flex items-center space-x-2">
+                          {!account.isPrimary && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleSetPrimary(account.id)}
+                            >
+                              Set as Primary
+                            </Button>
+                          )}
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => handleSetPrimary(account.id)}
+                            onClick={() => openRemittaModal(account)}
                           >
-                            Set as Primary
+                            {account.remittaServiceTypeId ? 'Edit Remitta' : 'Add Remitta'}
                           </Button>
-                        )}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -412,6 +463,102 @@ export default function BusinessAccountsPage() {
                 </Button>
                 <Button type="submit" className="flex-1" disabled={loading}>
                   {loading ? 'Adding...' : 'Add Account'}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Remitta Credentials Modal */}
+      {showRemittaModal && remittaAccount && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-6 border-b">
+              <h2 className="text-xl font-bold text-gray-900">Remitta Settings</h2>
+              <button
+                onClick={() => {
+                  setShowRemittaModal(false)
+                  setRemittaAccount(null)
+                }}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+
+            <form onSubmit={handleRemittaSubmit} className="p-6 space-y-4">
+              <p className="text-sm text-gray-600">
+                Enter the Remita <strong>Service Type ID</strong> issued for your school
+                on the platform's Remita account for{' '}
+                <strong>{remittaAccount.accountName}</strong>. Payments will settle to
+                the bank account configured for that service type on Remita.
+              </p>
+
+              <div className="space-y-2">
+                <Label htmlFor="remittaServiceTypeId">Service Type ID *</Label>
+                <Input
+                  id="remittaServiceTypeId"
+                  type="text"
+                  placeholder="e.g. 4430731"
+                  value={remittaForm.remittaServiceTypeId}
+                  onChange={(e) =>
+                    setRemittaForm({ ...remittaForm, remittaServiceTypeId: e.target.value })
+                  }
+                  required
+                />
+              </div>
+
+              <details className="text-sm text-gray-600">
+                <summary className="cursor-pointer font-medium">
+                  Advanced: use your own Remita merchant profile
+                </summary>
+                <div className="space-y-4 pt-3">
+                  <p className="text-xs text-gray-500">
+                    Only fill these if your school has its own Remita merchant
+                    account and should NOT bill through the platform's profile.
+                  </p>
+                  <div className="space-y-2">
+                    <Label htmlFor="remittaMerchantId">Merchant ID</Label>
+                    <Input
+                      id="remittaMerchantId"
+                      type="text"
+                      placeholder="Leave empty to use platform's"
+                      value={remittaForm.remittaMerchantId}
+                      onChange={(e) =>
+                        setRemittaForm({ ...remittaForm, remittaMerchantId: e.target.value })
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="remittaApiKey">API Key</Label>
+                    <Input
+                      id="remittaApiKey"
+                      type="password"
+                      placeholder="Leave empty to use platform's"
+                      value={remittaForm.remittaApiKey}
+                      onChange={(e) =>
+                        setRemittaForm({ ...remittaForm, remittaApiKey: e.target.value })
+                      }
+                    />
+                  </div>
+                </div>
+              </details>
+
+              <div className="flex space-x-3 pt-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => {
+                    setShowRemittaModal(false)
+                    setRemittaAccount(null)
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" className="flex-1" disabled={loading}>
+                  {loading ? 'Saving...' : 'Save Credentials'}
                 </Button>
               </div>
             </form>
