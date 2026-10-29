@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { Payment } from '../../entities/payment.entity';
 import { Student } from '../../entities/student.entity';
 import { FeeType } from '../../entities/fee-type.entity';
@@ -13,6 +13,7 @@ import { RemittaService } from './remitta.service';
 import { InitializePaymentDto } from './dto/initialize-payment.dto';
 import { InitializeApplicationPaymentDto } from './dto/initialize-application-payment.dto';
 import { CreateManualPaymentDto } from './dto/create-manual-payment.dto';
+import { BulkDeletePaymentsDto } from './dto/bulk-delete-payments.dto';
 
 @Injectable()
 export class PaymentsService {
@@ -95,22 +96,24 @@ export class PaymentsService {
     const totalAmount = amount + transactionFee;
 
     if (paymentMethod === 'remitta') {
-      // The account's remitta_api_key holds the school's Connect Gateway
-      // secretKey; falls back to the platform REMITTA_SECRET_KEY when unset.
+      // The account's remitta_api_key/remitta_public_key hold the school's
+      // Payment Gateway key pair; falls back to the platform's
+      // REMITTA_SECRET_KEY/REMITTA_PUBLIC_KEY when unset.
       const remittaCredentials = {
         secretKey: primaryAccount.remittaApiKey,
+        publicKey: primaryAccount.remittaPublicKey,
       };
 
-      const responseUrl = `${this.configService.get('FRONTEND_URL')}/payment/verify?reference=${reference}`;
-
-      const charge = await this.remittaService.charge({
-        orderId: reference,
-        amount: totalAmount,
+      // Payment Gateway checkout happens in the browser via the inline
+      // widget; the frontend verifies by reference once the widget succeeds.
+      const remita = this.remittaService.buildInlineConfig({
+        transactionId: reference,
+        amount: Math.round(totalAmount),
         payerName: `${student.firstName} ${student.lastName}`,
         payerEmail: email,
         payerPhone: student.phone,
+        customerId: student.admissionNumber || String(student.id),
         description: `${feeType.name} payment for ${student.firstName} ${student.lastName}`,
-        returnUrl: responseUrl,
         credentials: remittaCredentials,
       });
 
@@ -123,8 +126,8 @@ export class PaymentsService {
         feeAmount: amount,
         transactionFee: Math.round(transactionFee),
         totalAmount: Math.round(totalAmount),
-        authorizationUrl: charge.paymentLink,
-        accessCode: reference,
+        remita,
+        verifyUrl: `${this.configService.get('FRONTEND_URL')}/payment/verify?reference=${reference}`,
       };
     }
 
@@ -184,7 +187,10 @@ export class PaymentsService {
       });
 
       const credentials = primaryAccount
-        ? { secretKey: primaryAccount.remittaApiKey }
+        ? {
+            secretKey: primaryAccount.remittaApiKey,
+            publicKey: primaryAccount.remittaPublicKey,
+          }
         : undefined;
 
       const statusResponse = await this.remittaService.checkStatus(
@@ -240,6 +246,7 @@ export class PaymentsService {
     const refs = items
       .map(
         (item) =>
+          item?.transactionId ||
           item?.orderRef ||
           item?.orderId ||
           item?.paymentIdentifier ||
@@ -395,6 +402,33 @@ export class PaymentsService {
 
     await this.paymentRepo.save(payment);
     return { message: 'Manual payment recorded', payment };
+  }
+
+  /**
+   * Bulk-delete payments for a school. Only pending/failed records are
+   * removed — successful/refunded payments are financial records and are
+   * skipped, so the caller knows how many were actually deleted.
+   */
+  async bulkDelete(dto: BulkDeletePaymentsDto) {
+    const deletable = await this.paymentRepo.find({
+      where: {
+        id: In(dto.paymentIds),
+        schoolId: dto.schoolId,
+        status: In(['pending', 'failed']),
+      },
+      select: ['id'],
+    });
+
+    const ids = deletable.map((p) => p.id);
+    if (ids.length > 0) {
+      await this.paymentRepo.delete(ids);
+    }
+
+    return {
+      message: `${ids.length} payment(s) deleted`,
+      deleted: ids.length,
+      skipped: dto.paymentIds.length - ids.length,
+    };
   }
 
   async getPaymentStats(schoolId: number) {

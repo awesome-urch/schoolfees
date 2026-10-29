@@ -2,15 +2,17 @@
 
 import { useState, useEffect, Suspense } from 'react'
 import Link from 'next/link'
-import { useSearchParams } from 'next/navigation'
-import { GraduationCap, Loader2, CreditCard, Search } from 'lucide-react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { Loader2, CreditCard, Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { publicApi } from '@/lib/api'
+import { openRemitaCheckout } from '@/lib/remita'
 
 function StudentPaymentContent() {
   const searchParams = useSearchParams()
+  const router = useRouter()
   const [step, setStep] = useState(1)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -90,9 +92,15 @@ function StudentPaymentContent() {
       )
       setStudent(response.data)
 
-      // Fetch available fees for this student
+      // Fetch available fees for this student — school-wide fees plus
+      // fees scoped to the student's class (faculty).
       const feesResponse = await publicApi.get(`/fees/school/${schoolId}`)
-      setFees(feesResponse.data)
+      const studentClassId = response.data?.classId
+      setFees(
+        feesResponse.data.filter(
+          (fee: any) => !fee.class || fee.class?.id === studentClassId
+        )
+      )
 
       return true
     } catch (err: any) {
@@ -144,11 +152,25 @@ function StudentPaymentContent() {
         paymentMethod: formData.paymentMethod,
       })
 
+      if (response.data.remita) {
+        // Remita Payment Gateway: open the inline widget, then verify by
+        // reference once the payer completes the checkout.
+        const { reference } = response.data
+        await openRemitaCheckout(response.data.remita, {
+          onSuccess: () => router.push(`/payment/verify?reference=${reference}`),
+          onError: (res: any) => {
+            setError(res?.message || 'Remitta payment failed. Please try again.')
+            setLoading(false)
+          },
+          onClose: () => setLoading(false),
+        })
+        return
+      }
+
       // Redirect to Paystack
       window.location.href = response.data.authorizationUrl
     } catch (err: any) {
       setError(err.response?.data?.message || 'Payment initialization failed')
-    } finally {
       setLoading(false)
     }
   }
@@ -159,10 +181,8 @@ function StudentPaymentContent() {
       <nav className="border-b bg-white/80 backdrop-blur-md">
         <div className="container mx-auto px-4 py-4">
           <Link href="/" className="flex items-center space-x-2">
-            <GraduationCap className="h-8 w-8 text-blue-600" />
-            <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-              SchoolFees
-            </span>
+            <img src="/icons/icon-nav.png" alt="SchoolFees" className="h-9 w-auto rounded-md" />
+            <span className="text-2xl font-extrabold"><span className="text-blue-600">School</span><span className="text-orange-500">Fees</span></span>
           </Link>
         </div>
       </nav>
