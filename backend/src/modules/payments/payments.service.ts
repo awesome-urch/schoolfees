@@ -104,31 +104,54 @@ export class PaymentsService {
         publicKey: primaryAccount.remittaPublicKey,
       };
 
-      // Payment Gateway checkout happens in the browser via the inline
-      // widget; the frontend verifies by reference once the widget succeeds.
-      const remita = this.remittaService.buildInlineConfig({
-        transactionId: reference,
-        amount: Math.round(totalAmount),
-        payerName: `${student.firstName} ${student.lastName}`,
+      const payerName = `${student.firstName} ${student.lastName}`;
+      const description = `${feeType.name} payment for ${payerName}`;
+      const verifyUrl = `${this.configService.get('FRONTEND_URL')}/payment/verify?reference=${reference}`;
+
+      const base = {
+        paymentId: payment.id,
+        reference,
+        feeAmount: amount,
+        transactionFee: Math.round(transactionFee),
+        totalAmount: Math.round(totalAmount),
+        verifyUrl,
+      };
+
+      if (this.remittaService.mode === 'inline') {
+        // Classic Payment Gateway: checkout happens in the browser via the
+        // inline widget; the frontend verifies by reference on success.
+        const remita = this.remittaService.buildInlineConfig({
+          transactionId: reference,
+          amount: Math.round(totalAmount),
+          payerName,
+          payerEmail: email,
+          payerPhone: student.phone,
+          customerId: student.admissionNumber || String(student.id),
+          description,
+          credentials: remittaCredentials,
+        });
+
+        payment.remittaRrr = reference;
+        await this.paymentRepo.save(payment);
+        return { ...base, remita };
+      }
+
+      // Connect Gateway: server-side charge returns a hosted payment link.
+      const charge = await this.remittaService.charge({
+        orderId: reference,
+        amount: totalAmount,
+        payerName,
         payerEmail: email,
         payerPhone: student.phone,
-        customerId: student.admissionNumber || String(student.id),
-        description: `${feeType.name} payment for ${student.firstName} ${student.lastName}`,
+        description,
+        returnUrl: verifyUrl,
         credentials: remittaCredentials,
       });
 
       payment.remittaRrr = reference;
       await this.paymentRepo.save(payment);
 
-      return {
-        paymentId: payment.id,
-        reference,
-        feeAmount: amount,
-        transactionFee: Math.round(transactionFee),
-        totalAmount: Math.round(totalAmount),
-        remita,
-        verifyUrl: `${this.configService.get('FRONTEND_URL')}/payment/verify?reference=${reference}`,
-      };
+      return { ...base, authorizationUrl: charge.paymentLink, accessCode: reference };
     }
 
     if (!primaryAccount.subaccountCode) {
