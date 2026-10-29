@@ -137,6 +137,8 @@ export class PaymentsService {
       }
 
       // Connect Gateway: server-side charge returns a hosted payment link.
+      // If the school has a registered Remita sub-account, split settlement
+      // sends the fee amount to the school and keeps the transaction fee.
       const charge = await this.remittaService.charge({
         orderId: reference,
         amount: totalAmount,
@@ -146,6 +148,8 @@ export class PaymentsService {
         description,
         returnUrl: verifyUrl,
         credentials: remittaCredentials,
+        splitSubAccountId: primaryAccount.remittaSubaccountId || undefined,
+        splitShare: amount,
       });
 
       payment.remittaRrr = reference;

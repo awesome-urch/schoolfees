@@ -92,26 +92,44 @@ export class RemittaService {
     description?: string;
     returnUrl: string;
     credentials?: RemittaCredentials;
+    // Direct settlement to a school's registered Remita sub-account. share is
+    // the school's portion in the same unit as amount; the remainder stays in
+    // the platform's settlement account (the transaction fee).
+    splitSubAccountId?: string;
+    splitShare?: number;
   }) {
     const { secretKey } = this.getCredentials(data.credentials);
 
     const [firstName, ...rest] = (data.payerName || '').trim().split(/\s+/);
     const lastName = rest.join(' ') || firstName;
 
+    const payload: Record<string, unknown> = {
+      firstName,
+      lastName,
+      email: data.payerEmail,
+      phoneNumber: data.payerPhone,
+      paymentIdentifier: data.orderId,
+      currency: 'NGN',
+      narration: data.description || 'School fees payment',
+      returnUrl: data.returnUrl,
+      amount: Math.round(data.amount),
+    };
+    if (data.splitSubAccountId) {
+      payload.split = {
+        bearerSubAccountId: data.splitSubAccountId,
+        subAccountIds: [
+          {
+            subAccountId: data.splitSubAccountId,
+            share: Math.round(Number(data.splitShare ?? data.amount)),
+          },
+        ],
+      };
+    }
+
     try {
       const response = await axios.post(
         `${this.gatewayBaseUrl}/api/v1/payment-engine/payment/charge`,
-        {
-          firstName,
-          lastName,
-          email: data.payerEmail,
-          phoneNumber: data.payerPhone,
-          paymentIdentifier: data.orderId,
-          currency: 'NGN',
-          narration: data.description || 'School fees payment',
-          returnUrl: data.returnUrl,
-          amount: Math.round(data.amount),
-        },
+        payload,
         { headers: { secretKey, 'Content-Type': 'application/json' } },
       );
 
