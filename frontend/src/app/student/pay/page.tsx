@@ -159,7 +159,13 @@ function StudentPaymentContent() {
         await openRemitaCheckout(response.data.remita, {
           onSuccess: () => router.push(`/payment/verify?reference=${reference}`),
           onError: (res: any) => {
-            setError(res?.message || 'Remitta payment failed. Please try again.')
+            console.error('Remita widget error', res)
+            const detail = res?.message || res?.responseMsg || res?.responseCode
+            setError(
+              detail
+                ? `Remitta payment failed: ${detail}`
+                : 'Remitta payment failed. Please try again.'
+            )
             setLoading(false)
           },
           onClose: () => setLoading(false),
