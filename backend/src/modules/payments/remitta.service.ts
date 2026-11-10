@@ -55,7 +55,7 @@ export class RemittaService {
     this.checkoutBaseUrl =
       this.configService.get('REMITTA_CHECKOUT_URL') ||
       (isLive
-        ? 'https://api-checkout.systemspecsng.com'
+        ? 'https://api-checkout.remita.net'
         : 'https://api-checkout-demo.systemspecsng.com');
 
     this.defaultSecretKey = this.configService.get('REMITTA_SECRET_KEY');
@@ -112,7 +112,8 @@ export class RemittaService {
       currency: 'NGN',
       narration: data.description || 'School fees payment',
       returnUrl: data.returnUrl,
-      amount: Math.round(data.amount),
+      // Gateway expects minor units (kobo); callers pass naira.
+      amount: Math.round(data.amount * 100),
     };
     if (data.splitSubAccountId) {
       payload.split = {
@@ -120,7 +121,7 @@ export class RemittaService {
         subAccountIds: [
           {
             subAccountId: data.splitSubAccountId,
-            share: Math.round(Number(data.splitShare ?? data.amount)),
+            share: Math.round(Number(data.splitShare ?? data.amount) * 100),
           },
         ],
       };
