@@ -123,8 +123,8 @@ export default function LandingPage() {
               { label: 'Transactions', value: '₦2B+' },
               { label: 'Success Rate', value: '99.9%' },
             ].map((stat) => (
-              <div key={stat.label} className="text-center">
-                <div className="text-3xl md:text-4xl font-bold text-blue-600 mb-2">{stat.value}</div>
+              <div key={stat.label} className="text-center rounded-2xl p-4 transition-all duration-300 hover:bg-blue-50 hover:shadow-lg hover:-translate-y-1 cursor-default">
+                <div className="text-3xl md:text-4xl font-bold text-blue-600 mb-2 transition-colors duration-300 hover:text-orange-500">{stat.value}</div>
                 <div className="text-gray-600">{stat.label}</div>
               </div>
             ))}
