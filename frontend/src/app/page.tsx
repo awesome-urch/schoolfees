@@ -1,9 +1,43 @@
 'use client'
 
 import Link from 'next/link'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ArrowRight, CheckCircle, CreditCard, BarChart3, Shield, Users, Zap, UserPlus, MapPin, Phone, MessageCircle, GraduationCap } from 'lucide-react'
 import StudentRegistrationModal from '@/components/student-registration-modal'
+
+function CountUp({ target, prefix = '', suffix = '', decimals = 0 }: { target: number; prefix?: string; suffix?: string; decimals?: number }) {
+  const ref = useRef<HTMLDivElement>(null)
+  const [started, setStarted] = useState(false)
+  const [value, setValue] = useState(0)
+
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const obs = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) setStarted(true)
+    }, { threshold: 0.5 })
+    obs.observe(el)
+    return () => obs.disconnect()
+  }, [])
+
+  useEffect(() => {
+    if (!started) return
+    const duration = 1800
+    const start = performance.now()
+    const tick = (now: number) => {
+      const p = Math.min((now - start) / duration, 1)
+      setValue(target * (1 - Math.pow(1 - p, 3)))
+      if (p < 1) requestAnimationFrame(tick)
+    }
+    requestAnimationFrame(tick)
+  }, [started, target])
+
+  return (
+    <div ref={ref} className="text-3xl md:text-4xl font-bold text-blue-600 mb-2 transition-colors duration-300 hover:text-orange-500">
+      {prefix}{value.toFixed(decimals)}{suffix}
+    </div>
+  )
+}
 
 export default function LandingPage() {
   const [showRegistration, setShowRegistration] = useState(false)
@@ -118,13 +152,13 @@ export default function LandingPage() {
           {/* Stats */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mt-20 max-w-4xl mx-auto">
             {[
-              { label: 'Schools', value: '500+' },
-              { label: 'Students', value: '50K+' },
-              { label: 'Transactions', value: '₦2B+' },
-              { label: 'Success Rate', value: '99.9%' },
+              { label: 'Schools', target: 500, suffix: '+' },
+              { label: 'Students', target: 50, suffix: 'K+' },
+              { label: 'Transactions', target: 2, prefix: '₦', suffix: 'B+' },
+              { label: 'Success Rate', target: 99.9, suffix: '%', decimals: 1 },
             ].map((stat) => (
               <div key={stat.label} className="text-center rounded-2xl p-4 transition-all duration-300 hover:bg-blue-50 hover:shadow-lg hover:-translate-y-1 cursor-default">
-                <div className="text-3xl md:text-4xl font-bold text-blue-600 mb-2 transition-colors duration-300 hover:text-orange-500">{stat.value}</div>
+                <CountUp target={stat.target} prefix={stat.prefix} suffix={stat.suffix} decimals={stat.decimals} />
                 <div className="text-gray-600">{stat.label}</div>
               </div>
             ))}
