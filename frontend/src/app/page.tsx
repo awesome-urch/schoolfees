@@ -1,27 +1,44 @@
 'use client'
 
 import Link from 'next/link'
-import { ArrowRight, CheckCircle, GraduationCap, CreditCard, BarChart3, Shield, Users, Zap } from 'lucide-react'
+import { useState } from 'react'
+import { ArrowRight, CheckCircle, CreditCard, BarChart3, Shield, Users, Zap, UserPlus, MapPin, Phone, MessageCircle, GraduationCap } from 'lucide-react'
+import StudentRegistrationModal from '@/components/student-registration-modal'
 
 export default function LandingPage() {
+  const [showRegistration, setShowRegistration] = useState(false)
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
       {/* Navigation */}
       <nav className="border-b bg-white/80 backdrop-blur-md fixed w-full z-50">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <GraduationCap className="h-8 w-8 text-blue-600" />
-              <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                SchoolFees
-              </span>
-            </div>
+            <Link href="/" className="flex items-center space-x-2">
+                <img src="/icons/icon-nav.png" alt="SchoolFees" className="h-9 w-auto rounded-md" />
+                <span className="text-2xl font-extrabold hidden sm:inline"><span className="text-blue-600">School</span><span className="text-orange-500">Fees</span></span>
+              </Link>
             <div className="hidden md:flex items-center space-x-8">
               <a href="#features" className="text-gray-600 hover:text-blue-600 transition">Features</a>
               <a href="#pricing" className="text-gray-600 hover:text-blue-600 transition">Pricing</a>
               <a href="#about" className="text-gray-600 hover:text-blue-600 transition">About</a>
+              <button
+                onClick={() => setShowRegistration(true)}
+                className="text-blue-600 font-semibold hover:text-blue-700 transition flex items-center gap-1"
+              >
+                <UserPlus className="h-4 w-4" />
+                Register Child
+              </button>
+              <Link href="/student/pay" className="text-blue-600 font-semibold hover:text-blue-700 transition flex items-center gap-1">
+                <CreditCard className="h-4 w-4" />
+                Pay Fees
+              </Link>
+              <a href="https://school-portal.com.ng" target="_blank" rel="noopener noreferrer" className="text-indigo-600 font-semibold hover:text-indigo-700 transition flex items-center gap-1">
+                <GraduationCap className="h-4 w-4" />
+                School Portal
+              </a>
               <Link href="/auth/login" className="text-gray-600 hover:text-blue-600 transition">
-                Login
+                School Login
               </Link>
               <Link 
                 href="/auth/register"
@@ -29,6 +46,31 @@ export default function LandingPage() {
               >
                 Get Started
               </Link>
+            </div>
+            <div className="md:hidden flex items-center gap-2">
+              <button
+                onClick={() => setShowRegistration(true)}
+                className="bg-white border border-blue-600 text-blue-600 px-3 py-2 rounded-lg text-sm font-semibold hover:bg-blue-50 transition flex items-center gap-1"
+              >
+                <UserPlus className="h-4 w-4" />
+                Register
+              </button>
+              <Link
+                href="/student/pay"
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 transition flex items-center gap-1"
+              >
+                <CreditCard className="h-4 w-4" />
+                Pay Fees
+              </Link>
+              <a
+                href="https://school-portal.com.ng"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-indigo-600 px-2 py-2 text-sm font-semibold hover:text-indigo-700 transition flex items-center gap-1"
+              >
+                <GraduationCap className="h-4 w-4" />
+                Portal
+              </a>
             </div>
           </div>
         </div>
@@ -38,7 +80,7 @@ export default function LandingPage() {
       <section className="pt-32 pb-20 px-4">
         <div className="container mx-auto text-center">
           <div className="inline-block mb-4 px-4 py-2 bg-blue-100 rounded-full text-blue-700 text-sm font-medium">
-            🎉 Modern School Fees Management Platform
+            🎉 Digital School Fees Management Platform
           </div>
           <h1 className="text-5xl md:text-7xl font-bold mb-6 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent">
             Simplify School Fee
@@ -47,7 +89,7 @@ export default function LandingPage() {
           </h1>
           <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
             Streamline payments, track fees, and manage multiple schools with our comprehensive platform. 
-            Powered by Paystack for secure transactions.
+            Powered by Remita and Paystack for secure transactions.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link 
@@ -57,6 +99,13 @@ export default function LandingPage() {
               Start Free Trial
               <ArrowRight className="h-5 w-5" />
             </Link>
+            <button
+              onClick={() => setShowRegistration(true)}
+              className="bg-white border-2 border-blue-600 text-blue-600 px-8 py-4 rounded-lg hover:bg-blue-50 transition flex items-center justify-center gap-2 text-lg font-semibold"
+            >
+              Register Your Child
+              <UserPlus className="h-5 w-5" />
+            </button>
             <Link 
               href="/student/pay"
               className="bg-white border-2 border-blue-600 text-blue-600 px-8 py-4 rounded-lg hover:bg-blue-50 transition flex items-center justify-center gap-2 text-lg font-semibold"
@@ -198,12 +247,12 @@ export default function LandingPage() {
         <div className="container mx-auto px-4">
           <div className="grid md:grid-cols-4 gap-8">
             <div>
-              <div className="flex items-center space-x-2 mb-4">
-                <GraduationCap className="h-6 w-6" />
-                <span className="text-xl font-bold">SchoolFees</span>
-              </div>
+              <Link href="/" className="flex items-center space-x-2 mb-4">
+                <img src="/icons/icon-nav.png" alt="SchoolFees" className="h-7 w-auto rounded-md" />
+                <span className="text-xl font-extrabold"><span className="text-blue-400">School</span><span className="text-orange-500">Fees</span></span>
+              </Link>
               <p className="text-gray-400">
-                Modern school fees management platform for the digital age.
+                Digital school fees management platform for the digital age.
               </p>
             </div>
             <div>
@@ -211,31 +260,50 @@ export default function LandingPage() {
               <ul className="space-y-2 text-gray-400">
                 <li><a href="#features" className="hover:text-white transition">Features</a></li>
                 <li><a href="#pricing" className="hover:text-white transition">Pricing</a></li>
+                <li><Link href="/student/pay" className="hover:text-white transition">Pay Fees</Link></li>
+                <li><a href="https://school-portal.com.ng" target="_blank" rel="noopener noreferrer" className="hover:text-white transition">School Portal</a></li>
                 <li><a href="#" className="hover:text-white transition">Documentation</a></li>
               </ul>
             </div>
             <div>
-              <h4 className="font-semibold mb-4">Company</h4>
-              <ul className="space-y-2 text-gray-400">
-                <li><a href="#about" className="hover:text-white transition">About</a></li>
-                <li><a href="#" className="hover:text-white transition">Contact</a></li>
-                <li><a href="#" className="hover:text-white transition">Support</a></li>
+              <h4 className="font-semibold mb-4">Contact</h4>
+              <ul className="space-y-3 text-gray-400">
+                <li className="flex items-start gap-2">
+                  <MapPin className="h-4 w-4 mt-0.5 shrink-0" />
+                  <span>No. 10A Zumini Street, Trans Ekulu, Enugu</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <MessageCircle className="h-4 w-4 shrink-0" />
+                  <a href="https://wa.me/2348066133281" className="hover:text-white transition">
+                    08066133281 (WhatsApp)
+                  </a>
+                </li>
+                <li className="flex items-center gap-2">
+                  <Phone className="h-4 w-4 shrink-0" />
+                  <a href="tel:+2348135907440" className="hover:text-white transition">
+                    08135907440 (Call)
+                  </a>
+                </li>
               </ul>
             </div>
             <div>
               <h4 className="font-semibold mb-4">Legal </h4>
               <ul className="space-y-2 text-gray-400">
-                <li><a href="#" className="hover:text-white transition">Privacy</a></li>
+                <li><a href="/privacy" className="hover:text-white transition">Privacy</a></li>
                 <li><a href="#" className="hover:text-white transition">Terms</a></li>
                 <li><a href="#" className="hover:text-white transition">Security</a></li>
               </ul>
             </div>
           </div>
           <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400">
-            <p>&copy; 2025 SchoolFees. All rights reserved.</p>
+            <p>&copy; 2025 SchoolFees. All rights reserved. Powered by Monola Technologies Limited (RC 765535).</p>
           </div>
         </div>
       </footer>
+
+      {showRegistration && (
+        <StudentRegistrationModal onClose={() => setShowRegistration(false)} />
+      )}
     </div>
   )
 }
