@@ -219,8 +219,47 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* About Section */}
+      <section id="about" className="py-20 bg-gradient-to-br from-blue-50 to-indigo-50">
+        <div className="container mx-auto px-4">
+          <div className="grid md:grid-cols-2 gap-12 items-center max-w-6xl mx-auto">
+            <div>
+              <h2 className="text-4xl md:text-5xl font-bold mb-6">About SchoolFees</h2>
+              <p className="text-lg text-gray-600 mb-4">
+                SchoolFees is a Nigerian school-payment and management platform built by{' '}
+                <span className="font-semibold text-gray-900">Monola Technologies Limited (RC 765535)</span>.
+              </p>
+              <p className="text-lg text-gray-600 mb-4">
+                We help schools move from cash registers and paper receipts to a modern system where parents
+                pay online, every transaction is tracked in real time, and school records live in one place.
+              </p>
+              <p className="text-lg text-gray-600">
+                Every school on SchoolFees also gets a free website and a full school portal — results
+                computation, transcripts, admissions and parent SMS notifications included.
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              {[
+                { icon: <CreditCard className="h-7 w-7" />, title: 'Secure Payments', text: 'Remita & Paystack powered checkout' },
+                { icon: <GraduationCap className="h-7 w-7" />, title: 'Full School Portal', text: 'Results, transcripts & admissions' },
+                { icon: <MessageCircle className="h-7 w-7" />, title: 'Parent Alerts', text: 'Free SMS notifications for every payment' },
+                { icon: <Shield className="h-7 w-7" />, title: 'Trusted & Registered', text: 'RC 765535 — Monola Technologies Ltd' },
+              ].map((item) => (
+                <div key={item.title} className="bg-white rounded-xl p-5 shadow-sm">
+                  <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center text-blue-600 mb-3">
+                    {item.icon}
+                  </div>
+                  <h3 className="font-semibold mb-1">{item.title}</h3>
+                  <p className="text-sm text-gray-600">{item.text}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* How It Works */}
-      <section className="py-20 bg-gradient-to-br from-blue-50 to-indigo-50">
+      <section className="py-20 bg-white">
         <div className="container mx-auto px-4">
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-bold mb-4">How It Works</h2>
