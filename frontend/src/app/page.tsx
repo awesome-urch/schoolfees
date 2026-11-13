@@ -381,7 +381,6 @@ export default function LandingPage() {
                 <li><a href="#pricing" className="hover:text-white transition">Pricing</a></li>
                 <li><Link href="/student/pay" className="hover:text-white transition">Pay Fees</Link></li>
                 <li><a href="https://school-portal.com.ng" target="_blank" rel="noopener noreferrer" className="hover:text-white transition">School Portal</a></li>
-                <li><a href="#" className="hover:text-white transition">Documentation</a></li>
               </ul>
             </div>
             <div>
@@ -409,13 +408,12 @@ export default function LandingPage() {
               <h4 className="font-semibold mb-4">Legal </h4>
               <ul className="space-y-2 text-gray-400">
                 <li><a href="/privacy" className="hover:text-white transition">Privacy</a></li>
-                <li><a href="#" className="hover:text-white transition">Terms</a></li>
-                <li><a href="#" className="hover:text-white transition">Security</a></li>
+                <li><a href="/terms" className="hover:text-white transition">Terms</a></li>
               </ul>
             </div>
           </div>
           <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400">
-            <p>&copy; 2025 SchoolFees. All rights reserved. Powered by Monola Technologies Limited (RC 765535).</p>
+            <p>&copy; {new Date().getFullYear()} SchoolFees. All rights reserved. Powered by Monola Technologies Limited (RC 765535).</p>
           </div>
         </div>
       </footer>
