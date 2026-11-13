@@ -257,6 +257,52 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Pricing Section */}
+      <section id="pricing" className="py-20 bg-white">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl md:text-5xl font-bold mb-4">Simple Pricing</h2>
+            <p className="text-xl text-gray-600">One plan, everything included — no hidden fees</p>
+          </div>
+
+          <div className="max-w-lg mx-auto">
+            <div className="rounded-2xl border-2 border-blue-600 shadow-xl overflow-hidden">
+              <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-center py-3 font-semibold text-sm tracking-wide uppercase">
+                All-Inclusive Plan
+              </div>
+              <div className="p-8 text-center">
+                <div className="mb-6">
+                  <span className="text-5xl font-extrabold text-blue-600">₦350</span>
+                  <span className="text-xl text-gray-500"> /student</span>
+                </div>
+                <ul className="space-y-4 text-left mb-8">
+                  {[
+                    'Free school website',
+                    'Free school portal — results computation & transcripts',
+                    'Free SMS notifications to parents',
+                    'Online fee payments via Remita & Paystack',
+                    'Unlimited students & staff accounts',
+                    'Payment tracking & reports dashboard',
+                  ].map((item) => (
+                    <li key={item} className="flex items-start gap-3">
+                      <CheckCircle className="h-6 w-6 text-green-500 flex-shrink-0 mt-0.5" />
+                      <span className="text-gray-700">{item}</span>
+                    </li>
+                  ))}
+                </ul>
+                <Link
+                  href="/auth/register"
+                  className="inline-flex items-center justify-center gap-2 w-full bg-blue-600 text-white px-8 py-4 rounded-lg hover:bg-blue-700 transition text-lg font-semibold"
+                >
+                  Get Started
+                  <ArrowRight className="h-5 w-5" />
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* CTA Section */}
       <section className="py-20 bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
         <div className="container mx-auto px-4 text-center">
