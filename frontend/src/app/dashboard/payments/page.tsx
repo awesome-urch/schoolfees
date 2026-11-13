@@ -3,11 +3,12 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { GraduationCap, LogOut, DollarSign, CheckCircle, XCircle, Clock, Search, Plus } from 'lucide-react'
+import { LogOut, CheckCircle, XCircle, Clock, Search, Plus, Trash2, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import api from '@/lib/api'
+import LiveClock from '@/components/LiveClock'
 
 export default function PaymentsPage() {
   const router = useRouter()
@@ -19,6 +20,8 @@ export default function PaymentsPage() {
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [filteredPayments, setFilteredPayments] = useState<any[]>([])
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
+  const [deleting, setDeleting] = useState(false)
   // manual payment state
   const [students, setStudents] = useState<any[]>([])
   const [feeTypes, setFeeTypes] = useState<any[]>([])
@@ -65,6 +68,7 @@ export default function PaymentsPage() {
       const response = await api.get(`/payments/school/${schoolId}`)
       setPayments(response.data)
       setFilteredPayments(response.data)
+      setSelectedIds(new Set())
     } catch (error) {
       console.error('Failed to fetch payments:', error)
     }
@@ -115,9 +119,54 @@ export default function PaymentsPage() {
 
   const handleSchoolChange = (schoolId: string) => {
     setSelectedSchool(schoolId)
+    setSelectedIds(new Set())
     fetchPayments(parseInt(schoolId))
     fetchStats(parseInt(schoolId))
     fetchRefs(parseInt(schoolId))
+  }
+
+  const isDeletable = (p: any) => p.status === 'pending' || p.status === 'failed'
+
+  const toggleSelect = (id: number) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
+
+  const toggleSelectAll = () => {
+    const deletableIds = filteredPayments.filter(isDeletable).map((p) => p.id)
+    setSelectedIds((prev) =>
+      deletableIds.every((id) => prev.has(id)) && deletableIds.length > 0
+        ? new Set()
+        : new Set(deletableIds)
+    )
+  }
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return
+    if (!confirm(`Delete ${selectedIds.size} selected payment(s)? This cannot be undone.`)) return
+
+    setDeleting(true)
+    try {
+      const res = await api.post('/payments/bulk-delete', {
+        schoolId: +selectedSchool,
+        paymentIds: Array.from(selectedIds),
+      })
+      const { deleted, skipped } = res.data
+      alert(
+        skipped > 0
+          ? `${deleted} payment(s) deleted. ${skipped} skipped (only pending/failed payments can be deleted).`
+          : `${deleted} payment(s) deleted.`
+      )
+      fetchPayments(+selectedSchool)
+      fetchStats(+selectedSchool)
+    } catch (error: any) {
+      alert(error.response?.data?.message || 'Failed to delete payments')
+    } finally {
+      setDeleting(false)
+    }
   }
 
   useEffect(() => {
@@ -184,12 +233,11 @@ export default function PaymentsPage() {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <Link href="/dashboard" className="flex items-center space-x-2">
-              <GraduationCap className="h-8 w-8 text-blue-600" />
-              <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                SchoolFees
-              </span>
+              <img src="/icons/icon-nav.png" alt="SchoolFees" className="h-9 w-auto rounded-md" />
+              <span className="text-2xl font-extrabold"><span className="text-blue-600">School</span><span className="text-orange-500">Fees</span></span>
             </Link>
             <div className="flex items-center space-x-4">
+              <LiveClock />
               <span className="text-sm text-gray-600">{user?.fullName}</span>
               <Button variant="outline" size="sm" onClick={handleLogout}>
                 <LogOut className="h-4 w-4 mr-2" />
@@ -216,8 +264,8 @@ export default function PaymentsPage() {
             <Link href="/dashboard/students" className="py-4 px-2 border-b-2 border-transparent text-gray-600 hover:text-gray-900">
               Students
             </Link>
-            <Link href="/dashboard/classes" className="py-4 px-2 border-b-2 border-transparent text-gray-600 hover:text-gray-900">
-              Classes
+            <Link href="/dashboard/academics" className="py-4 px-2 border-b-2 border-transparent text-gray-600 hover:text-gray-900">
+              Academics
             </Link>
             <Link href="/dashboard/fees" className="py-4 px-2 border-b-2 border-transparent text-gray-600 hover:text-gray-900">
               Fees
@@ -227,6 +275,9 @@ export default function PaymentsPage() {
             </Link>
             <Link href="/dashboard/accounts" className="py-4 px-2 border-b-2 border-transparent text-gray-600 hover:text-gray-900">
               Accounts
+            </Link>
+            <Link href="/dashboard/settings" className="py-4 px-2 border-b-2 border-transparent text-gray-600 hover:text-gray-900">
+              Settings
             </Link>
           </div>
         </div>
@@ -258,8 +309,23 @@ export default function PaymentsPage() {
           </div>
         )}
 
-        {/* Manual Payment Button */}
-        <div className="flex justify-end mb-4">
+        {/* Actions */}
+        <div className="flex justify-end gap-3 mb-4">
+          {selectedIds.size > 0 && (
+            <Button
+              variant="outline"
+              onClick={handleBulkDelete}
+              disabled={deleting}
+              className="text-red-600 border-red-300 hover:bg-red-50"
+            >
+              {deleting ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Trash2 className="h-4 w-4 mr-2" />
+              )}
+              Delete Selected ({selectedIds.size})
+            </Button>
+          )}
           <Button onClick={() => { fetchRefs(+selectedSchool); setShowManualModal(true) }}>
             <Plus className="h-4 w-4 mr-2" />
             Add Manual Payment
@@ -272,7 +338,7 @@ export default function PaymentsPage() {
             <div className="bg-white rounded-lg shadow p-6">
               <div className="flex items-center justify-between mb-2">
                 <p className="text-sm text-gray-600">Total Revenue</p>
-                <DollarSign className="h-5 w-5 text-green-600" />
+                <span className="text-xl font-bold text-green-600">₦</span>
               </div>
               <p className="text-2xl font-bold text-gray-900">₦{stats.totalRevenue?.toLocaleString() || 0}</p>
             </div>
@@ -323,6 +389,18 @@ export default function PaymentsPage() {
             <table className="w-full">
               <thead className="bg-gray-50">
                 <tr>
+                  <th className="px-4 py-3 w-10">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 rounded border-gray-300 cursor-pointer"
+                      checked={
+                        filteredPayments.filter(isDeletable).length > 0 &&
+                        filteredPayments.filter(isDeletable).every((p) => selectedIds.has(p.id))
+                      }
+                      onChange={toggleSelectAll}
+                      title="Select all pending/failed payments"
+                    />
+                  </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Reference</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Student</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fee Type</th>
@@ -334,14 +412,24 @@ export default function PaymentsPage() {
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredPayments.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-6 py-12 text-center">
-                      <DollarSign className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+                    <td colSpan={7} className="px-6 py-12 text-center">
+                      <span className="block text-5xl font-bold text-gray-300 mb-4">₦</span>
                       <p className="text-gray-500">No payments yet</p>
                     </td>
                   </tr>
                 ) : (
                   filteredPayments.map((payment) => (
-                    <tr key={payment.id} className="hover:bg-gray-50">
+                    <tr key={payment.id} className={`hover:bg-gray-50 ${selectedIds.has(payment.id) ? 'bg-blue-50' : ''}`}>
+                      <td className="px-4 py-4 whitespace-nowrap">
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 rounded border-gray-300 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
+                          checked={selectedIds.has(payment.id)}
+                          disabled={!isDeletable(payment)}
+                          onChange={() => toggleSelect(payment.id)}
+                          title={isDeletable(payment) ? 'Select payment' : 'Only pending/failed payments can be deleted'}
+                        />
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-gray-900">{payment.reference}</div>
                         <div className="text-xs text-gray-500 capitalize">{payment.paymentMethod}</div>

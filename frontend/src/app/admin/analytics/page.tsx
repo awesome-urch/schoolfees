@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { GraduationCap, LogOut, TrendingUp, Building2, Users, DollarSign, Activity } from 'lucide-react'
+import { LogOut, TrendingUp, Building2, Users, Activity } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import api from '@/lib/api'
 
@@ -62,12 +62,10 @@ export default function AnalyticsPage() {
       <header className="bg-white border-b">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <GraduationCap className="h-8 w-8 text-blue-600" />
-              <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                SchoolFees Admin
-              </span>
-            </div>
+            <Link href="/admin/dashboard" className="flex items-center space-x-2">
+              <img src="/icons/icon-nav.png" alt="SchoolFees" className="h-9 w-auto rounded-md" />
+              <span className="text-2xl font-extrabold"><span className="text-blue-600">School</span><span className="text-orange-500">Fees Admin</span></span>
+            </Link>
             <div className="flex items-center space-x-4">
               <span className="text-sm text-gray-600">Super Admin: {user?.fullName}</span>
               <Button variant="outline" size="sm" onClick={handleLogout}>
@@ -146,7 +144,7 @@ export default function AnalyticsPage() {
 
           <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-lg shadow-lg p-6 text-white">
             <div className="flex items-center justify-between mb-4">
-              <DollarSign className="h-8 w-8 opacity-80" />
+              <span className="text-3xl font-bold opacity-80">₦</span>
               <TrendingUp className="h-5 w-5 opacity-60" />
             </div>
             <h3 className="text-3xl font-bold mb-1">
@@ -212,7 +210,7 @@ export default function AnalyticsPage() {
                     ₦{(stats?.totalRevenue || 0).toLocaleString()}
                   </p>
                 </div>
-                <DollarSign className="h-10 w-10 text-green-600" />
+                <span className="text-4xl font-bold text-green-600">₦</span>
               </div>
 
               <div className="flex items-center justify-between p-4 bg-blue-50 rounded-lg">

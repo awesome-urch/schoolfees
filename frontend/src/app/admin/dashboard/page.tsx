@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { GraduationCap, Users, Building2, DollarSign, TrendingUp, LogOut, CheckCircle, XCircle } from 'lucide-react'
+import { Users, Building2, TrendingUp, LogOut, CheckCircle, XCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import api from '@/lib/api'
 
@@ -64,12 +64,10 @@ export default function AdminDashboardPage() {
       <header className="bg-white border-b">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <GraduationCap className="h-8 w-8 text-blue-600" />
-              <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                SchoolFees Admin
-              </span>
-            </div>
+            <Link href="/admin/dashboard" className="flex items-center space-x-2">
+              <img src="/icons/icon-nav.png" alt="SchoolFees" className="h-9 w-auto rounded-md" />
+              <span className="text-2xl font-extrabold"><span className="text-blue-600">School</span><span className="text-orange-500">Fees Admin</span></span>
+            </Link>
             <div className="flex items-center space-x-4">
               <span className="text-sm text-gray-600">Super Admin: {user?.fullName}</span>
               <Button variant="outline" size="sm" onClick={handleLogout}>
@@ -146,7 +144,7 @@ export default function AdminDashboardPage() {
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center justify-between mb-4">
               <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                <DollarSign className="h-6 w-6 text-green-600" />
+                <span className="text-2xl font-bold text-green-600">₦</span>
               </div>
             </div>
             <h3 className="text-2xl font-bold text-gray-900">

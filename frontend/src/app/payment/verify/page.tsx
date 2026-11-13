@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { GraduationCap, CheckCircle, XCircle, Loader2, Download, Home } from 'lucide-react'
+import { CheckCircle, XCircle, Loader2, Download, Home } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { publicApi } from '@/lib/api'
 
@@ -12,6 +12,7 @@ export default function PaymentVerifyPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [payment, setPayment] = useState<any>(null)
+  const [payments, setPayments] = useState<any[]>([])
   const [error, setError] = useState('')
   const reference = searchParams.get('reference')
 
@@ -29,6 +30,7 @@ export default function PaymentVerifyPage() {
     try {
       const response = await publicApi.get(`/payments/verify/${ref}`)
       setPayment(response.data.payment)
+      setPayments(response.data.payments || [response.data.payment])
     } catch (err: any) {
       setError(err.response?.data?.message || 'Payment verification failed')
     } finally {
@@ -53,10 +55,8 @@ export default function PaymentVerifyPage() {
       <nav className="border-b bg-white/80 backdrop-blur-md">
         <div className="container mx-auto px-4 py-4">
           <Link href="/" className="flex items-center space-x-2">
-            <GraduationCap className="h-8 w-8 text-blue-600" />
-            <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-              SchoolFees
-            </span>
+            <img src="/icons/icon-nav.png" alt="SchoolFees" className="h-9 w-auto rounded-md" />
+            <span className="text-2xl font-extrabold"><span className="text-blue-600">School</span><span className="text-orange-500">Fees</span></span>
           </Link>
         </div>
       </nav>
@@ -107,16 +107,35 @@ export default function PaymentVerifyPage() {
                       {payment.student?.firstName} {payment.student?.lastName}
                     </span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Fee Type:</span>
-                    <span className="font-medium text-gray-900">{payment.feeType?.name}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Amount:</span>
-                    <span className="font-bold text-green-600 text-lg">
-                      ₦{payment.amount?.toLocaleString()}
-                    </span>
-                  </div>
+                  {payments.length > 1 ? (
+                    <>
+                      {payments.map((p: any) => (
+                        <div key={p.id} className="flex justify-between">
+                          <span className="text-gray-600">{p.feeType?.name}:</span>
+                          <span className="font-medium text-gray-900">₦{Number(p.amount).toLocaleString()}</span>
+                        </div>
+                      ))}
+                      <div className="flex justify-between border-t border-gray-200 pt-2">
+                        <span className="text-gray-600">Total Paid:</span>
+                        <span className="font-bold text-green-600 text-lg">
+                          ₦{payments.reduce((sum: number, p: any) => sum + Number(p.amount), 0).toLocaleString()}
+                        </span>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Fee Type:</span>
+                        <span className="font-medium text-gray-900">{payment.feeType?.name}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Amount:</span>
+                        <span className="font-bold text-green-600 text-lg">
+                          ₦{payment.amount?.toLocaleString()}
+                        </span>
+                      </div>
+                    </>
+                  )}
                   <div className="flex justify-between">
                     <span className="text-gray-600">Date:</span>
                     <span className="font-medium text-gray-900">

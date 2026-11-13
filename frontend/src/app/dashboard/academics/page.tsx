@@ -3,11 +3,12 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { GraduationCap, LogOut, Plus, Users, X, Edit, Trash2 } from 'lucide-react'
+import { LogOut, Plus, Users, X, Edit, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import api from '@/lib/api'
+import LiveClock from '@/components/LiveClock'
 
 export default function ClassesManagementPage() {
   const router = useRouter()
@@ -21,7 +22,12 @@ export default function ClassesManagementPage() {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
+    faculty: '',
+    department: '',
   })
+
+  const faculties = [...new Set(classes.map((c: any) => c.faculty).filter(Boolean))] as string[]
+  const departments = [...new Set(classes.map((c: any) => c.department).filter(Boolean))] as string[]
 
   useEffect(() => {
     const userData = localStorage.getItem('user')
@@ -73,11 +79,15 @@ export default function ClassesManagementPage() {
         await api.patch(`/classes/${editingClass.id}/school/${selectedSchool}`, {
           name: formData.name,
           description: formData.description,
+          faculty: formData.faculty || null,
+          department: formData.department || null,
         })
         alert('Class updated successfully!')
       } else {
         await api.post('/classes', {
           ...formData,
+          faculty: formData.faculty || null,
+          department: formData.department || null,
           schoolId: parseInt(selectedSchool),
         })
         alert('Class created successfully!')
@@ -97,6 +107,8 @@ export default function ClassesManagementPage() {
     setFormData({
       name: cls.name,
       description: cls.description || '',
+      faculty: cls.faculty || '',
+      department: cls.department || '',
     })
     setShowModal(true)
   }
@@ -117,6 +129,8 @@ export default function ClassesManagementPage() {
     setFormData({
       name: '',
       description: '',
+      faculty: '',
+      department: '',
     })
     setEditingClass(null)
   }
@@ -143,12 +157,11 @@ export default function ClassesManagementPage() {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <Link href="/dashboard" className="flex items-center space-x-2">
-              <GraduationCap className="h-8 w-8 text-blue-600" />
-              <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                SchoolFees
-              </span>
+              <img src="/icons/icon-nav.png" alt="SchoolFees" className="h-9 w-auto rounded-md" />
+              <span className="text-2xl font-extrabold"><span className="text-blue-600">School</span><span className="text-orange-500">Fees</span></span>
             </Link>
             <div className="flex items-center space-x-4">
+              <LiveClock />
               <span className="text-sm text-gray-600">{user?.fullName}</span>
               <Button variant="outline" size="sm" onClick={handleLogout}>
                 <LogOut className="h-4 w-4 mr-2" />
@@ -175,8 +188,8 @@ export default function ClassesManagementPage() {
             <Link href="/dashboard/students" className="py-4 px-2 border-b-2 border-transparent text-gray-600 hover:text-gray-900">
               Students
             </Link>
-            <Link href="/dashboard/classes" className="py-4 px-2 border-b-2 border-blue-600 text-blue-600 font-medium">
-              Classes
+            <Link href="/dashboard/academics" className="py-4 px-2 border-b-2 border-blue-600 text-blue-600 font-medium">
+              Academics
             </Link>
             <Link href="/dashboard/fees" className="py-4 px-2 border-b-2 border-transparent text-gray-600 hover:text-gray-900">
               Fees
@@ -187,6 +200,9 @@ export default function ClassesManagementPage() {
             <Link href="/dashboard/accounts" className="py-4 px-2 border-b-2 border-transparent text-gray-600 hover:text-gray-900">
               Accounts
             </Link>
+            <Link href="/dashboard/settings" className="py-4 px-2 border-b-2 border-transparent text-gray-600 hover:text-gray-900">
+              Settings
+            </Link>
           </div>
         </div>
       </nav>
@@ -195,8 +211,8 @@ export default function ClassesManagementPage() {
       <main className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Classes Management</h1>
-            <p className="text-gray-600">Manage classes/grades for your schools</p>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Academics</h1>
+            <p className="text-gray-600">Manage classes, levels, faculties and departments — JSS/SS classes for secondary schools, levels for universities</p>
           </div>
           <Button onClick={() => { resetForm(); setShowModal(true); }}>
             <Plus className="h-4 w-4 mr-2" />
@@ -229,7 +245,7 @@ export default function ClassesManagementPage() {
             <div className="col-span-full bg-white rounded-lg shadow p-12 text-center">
               <Users className="h-16 w-16 text-gray-300 mx-auto mb-4" />
               <h3 className="text-lg font-semibold text-gray-900 mb-2">No Classes Yet</h3>
-              <p className="text-gray-600 mb-4">Create classes like JSS1, SS2, etc.</p>
+              <p className="text-gray-600 mb-4">Create classes like JSS1, SS2 (or 100 Level, 200 Level with Faculty/Department for universities).</p>
               <Button onClick={() => { resetForm(); setShowModal(true); }}>
                 <Plus className="h-4 w-4 mr-2" />
                 Add Class
@@ -242,6 +258,16 @@ export default function ClassesManagementPage() {
                   <Users className="h-6 w-6 text-purple-600" />
                 </div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">{cls.name}</h3>
+                {(cls.faculty || cls.department) && (
+                  <div className="flex flex-wrap gap-1 mb-2">
+                    {cls.faculty && (
+                      <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-indigo-100 text-indigo-800">{cls.faculty}</span>
+                    )}
+                    {cls.department && (
+                      <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-teal-100 text-teal-800">{cls.department}</span>
+                    )}
+                  </div>
+                )}
                 {cls.description && (
                   <p className="text-sm text-gray-600 mb-4">{cls.description}</p>
                 )}
@@ -280,7 +306,7 @@ export default function ClassesManagementPage() {
           <div className="bg-white rounded-lg max-w-md w-full">
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold text-gray-900">Add New Class</h2>
+                <h2 className="text-2xl font-bold text-gray-900">{editingClass ? 'Edit Class' : 'Add New Class'}</h2>
                 <button onClick={() => { setShowModal(false); resetForm(); }} className="text-gray-400 hover:text-gray-600">
                   <X className="h-6 w-6" />
                 </button>
@@ -291,11 +317,42 @@ export default function ClassesManagementPage() {
                   <Label htmlFor="name">Class Name *</Label>
                   <Input
                     id="name"
-                    placeholder="e.g., JSS 1, SS 2, Primary 3"
+                    placeholder="e.g., JSS 1, SS 2, Primary 3, 100 Level, HND 1"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     required
                   />
+                  <p className="text-xs text-gray-500 mt-1">
+                    The class/level itself — e.g., "100 Level", "ND 1", or "HND 2" for universities
+                  </p>
+                </div>
+
+                <div>
+                  <Label htmlFor="faculty">Faculty <span className="text-gray-400 font-normal">(universities — optional)</span></Label>
+                  <Input
+                    id="faculty"
+                    list="faculty-list"
+                    placeholder="e.g., Faculty of Sciences"
+                    value={formData.faculty}
+                    onChange={(e) => setFormData({ ...formData, faculty: e.target.value })}
+                  />
+                  <datalist id="faculty-list">
+                    {faculties.map((f) => <option key={f} value={f} />)}
+                  </datalist>
+                </div>
+
+                <div>
+                  <Label htmlFor="department">Department <span className="text-gray-400 font-normal">(optional)</span></Label>
+                  <Input
+                    id="department"
+                    list="department-list"
+                    placeholder="e.g., Computer Science"
+                    value={formData.department}
+                    onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+                  />
+                  <datalist id="department-list">
+                    {departments.map((d) => <option key={d} value={d} />)}
+                  </datalist>
                 </div>
 
                 <div>

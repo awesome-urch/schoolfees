@@ -25,9 +25,31 @@ function StudentPaymentContent() {
     schoolId: '',
     admissionNumber: '',
     email: '',
-    selectedFeeId: '',
     paymentMethod: 'remitta',
   })
+  const [selectedFeeIds, setSelectedFeeIds] = useState<number[]>([])
+
+  const paidFeeIds = new Set(
+    (student?.payments || [])
+      .filter((p: any) => p.status === 'successful')
+      .map((p: any) => p.feeTypeId)
+  )
+
+  const unpaidFees = fees.filter((f: any) => !paidFeeIds.has(f.id))
+  const selectedFees = fees.filter((f: any) => selectedFeeIds.includes(f.id))
+  const selectedTotal = selectedFees.reduce((sum: number, f: any) => sum + Number(f.amount), 0)
+
+  const toggleFee = (id: number) => {
+    setSelectedFeeIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    )
+  }
+
+  const toggleSelectAll = () => {
+    setSelectedFeeIds((prev) =>
+      prev.length === unpaidFees.length ? [] : unpaidFees.map((f: any) => f.id)
+    )
+  }
 
   // Fetch all schools on mount
   useEffect(() => {
@@ -51,8 +73,8 @@ function StudentPaymentContent() {
       }))
     }
 
-    // When the link carries both identifiers, resolve the student immediately
-    // so the parent sees the child's name straight away.
+    // When the link carries school + admission, resolve the student
+    // immediately so the parent sees the child's name straight away.
     if (schoolValid && admissionParam && !student) {
       lookupStudent(schoolParam, admissionParam)
     }
@@ -104,7 +126,11 @@ function StudentPaymentContent() {
 
       return true
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Student not found')
+      setError(
+        err.response?.status === 404
+          ? 'Student not found. Check the school and admission number.'
+          : err.response?.data?.message || 'Student not found'
+      )
       return false
     } finally {
       setLoading(false)
@@ -126,7 +152,8 @@ function StudentPaymentContent() {
     setStudent(null)
     setFees([])
     setError('')
-    setFormData((prev) => ({ ...prev, schoolId: '', admissionNumber: '', selectedFeeId: '' }))
+    setFormData((prev) => ({ ...prev, schoolId: '', admissionNumber: '' }))
+    setSelectedFeeIds([])
     setSchoolSearchTerm('')
   }
 
@@ -135,10 +162,8 @@ function StudentPaymentContent() {
     setError('')
 
     try {
-      const selectedFee = fees.find((f) => f.id === parseInt(formData.selectedFeeId))
-      
-      if (!selectedFee) {
-        setError('Selected fee not found')
+      if (selectedFees.length === 0) {
+        setError('Please select at least one fee item')
         setLoading(false)
         return
       }
@@ -146,9 +171,10 @@ function StudentPaymentContent() {
       const response = await publicApi.post('/payments/initialize', {
         schoolId: parseInt(formData.schoolId),
         studentId: student.id,
-        feeTypeId: parseInt(formData.selectedFeeId),
-        amount: Number(selectedFee.amount),
-        email: formData.email,
+        feeTypeId: selectedFeeIds[0],
+        feeTypeIds: selectedFeeIds,
+        amount: selectedTotal,
+        email: formData.email || undefined,
         paymentMethod: formData.paymentMethod,
       })
 
@@ -182,7 +208,7 @@ function StudentPaymentContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
+    <div className="min-h-screen bg-[linear-gradient(to_bottom_right,rgba(239,246,255,0.72),rgba(255,255,255,0.6),rgba(238,242,255,0.72)),url('/images/pay-bg.svg')] bg-cover bg-center bg-fixed">
       {/* Header */}
       <nav className="border-b bg-white/80 backdrop-blur-md">
         <div className="container mx-auto px-4 py-4">
@@ -293,21 +319,9 @@ function StudentPaymentContent() {
                     required
                   />
                 </div>
+
                   </>
                 )}
-
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email Address</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="your@email.com"
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    required
-                  />
-                  <p className="text-xs text-gray-500">Receipt will be sent to this email</p>
-                </div>
 
                 <Button type="submit" className="w-full" disabled={loading}>
                   {loading ? (
@@ -346,21 +360,76 @@ function StudentPaymentContent() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="feeType">Select Fee Type</Label>
-                  <select
-                    id="feeType"
-                    value={formData.selectedFeeId}
-                    onChange={(e) => setFormData({ ...formData, selectedFeeId: e.target.value })}
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                    required
-                  >
-                    <option value="">-- Select a fee --</option>
-                    {fees.map((fee) => (
-                      <option key={fee.id} value={fee.id}>
-                        {fee.name} - ₦{fee.amount.toLocaleString()}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="flex items-center justify-between">
+                    <Label>What do you want to pay?</Label>
+                    {unpaidFees.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={toggleSelectAll}
+                        className="text-sm font-medium text-blue-600 hover:underline"
+                      >
+                        {selectedFeeIds.length === unpaidFees.length ? 'Deselect all' : 'Select all'}
+                      </button>
+                    )}
+                  </div>
+                  <div className="space-y-3">
+                    {fees.map((fee) => {
+                      const paid = paidFeeIds.has(fee.id)
+                      const selected = selectedFeeIds.includes(fee.id)
+                      return (
+                        <button
+                          key={fee.id}
+                          type="button"
+                          disabled={paid}
+                          onClick={() => toggleFee(fee.id)}
+                          className={`w-full flex items-center gap-3 rounded-lg border-2 px-4 py-3 text-left transition ${
+                            paid
+                              ? 'border-gray-200 bg-gray-50 opacity-60 cursor-not-allowed'
+                              : selected
+                                ? 'border-blue-600 bg-blue-50'
+                                : 'border-gray-200 bg-white hover:border-blue-300'
+                          }`}
+                        >
+                          <span
+                            className={`w-5 h-5 shrink-0 rounded border-2 flex items-center justify-center ${
+                              paid
+                                ? 'border-gray-300 bg-gray-100'
+                                : selected
+                                  ? 'border-blue-600 bg-blue-600'
+                                  : 'border-gray-300 bg-white'
+                            }`}
+                          >
+                            {selected && (
+                              <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                              </svg>
+                            )}
+                          </span>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-gray-900">{fee.name}</p>
+                            {fee.session?.name && (
+                              <p className="text-xs text-gray-500">{fee.session.name}</p>
+                            )}
+                          </div>
+                          {paid ? (
+                            <span className="text-xs font-semibold text-green-700 bg-green-100 px-2 py-1 rounded-full">
+                              Paid
+                            </span>
+                          ) : (
+                            <span className="text-lg font-bold text-gray-900">
+                              ₦{fee.amount.toLocaleString()}
+                            </span>
+                          )}
+                        </button>
+                      )
+                    })}
+                  </div>
+                  {fees.length === 0 && (
+                    <p className="text-sm text-gray-500">No fees found for this student.</p>
+                  )}
+                  {fees.length > 0 && fees.every((f) => paidFeeIds.has(f.id)) && (
+                    <p className="text-sm text-green-700">All fees have been paid.</p>
+                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -371,46 +440,32 @@ function StudentPaymentContent() {
                     onChange={(e) => setFormData({ ...formData, paymentMethod: e.target.value })}
                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                   >
-                    <option value="remitta">Remitta</option>
+                    <option value="remitta">Remita</option>
                     <option value="paystack">Paystack</option>
                   </select>
                 </div>
 
-                {formData.selectedFeeId && (() => {
-                  const fee = fees.find((f) => f.id === parseInt(formData.selectedFeeId))
-                  const feeAmount = Number(fee?.amount || 0)
-                  // Calculate transaction fee (1.5% + ₦100, capped at ₦2,000)
-                  let transactionFee = (feeAmount * 0.015) + 100
-                  if (transactionFee > 2000) transactionFee = 2000
-                  const totalAmount = feeAmount + transactionFee
-                  
-                  return (
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                      <p className="text-sm text-blue-900 mb-3">
-                        <strong>Payment Breakdown:</strong>
-                      </p>
-                      <div className="space-y-2 mb-3">
-                        <div className="flex justify-between text-sm">
-                          <span className="text-gray-700">Fee Amount:</span>
-                          <span className="font-semibold text-gray-900">₦{feeAmount.toLocaleString()}</span>
+                {selectedFees.length > 0 && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <p className="text-sm text-blue-900 mb-3">
+                      <strong>Payment Breakdown:</strong>
+                    </p>
+                    <div className="space-y-2">
+                      {selectedFees.map((f: any) => (
+                        <div key={f.id} className="flex justify-between text-sm">
+                          <span className="text-gray-700 truncate pr-2">{f.name}</span>
+                          <span className="font-medium text-gray-900 whitespace-nowrap">₦{Number(f.amount).toLocaleString()}</span>
                         </div>
-                        <div className="flex justify-between text-sm">
-                          <span className="text-gray-700">Transaction Fee:</span>
-                          <span className="font-semibold text-gray-900">₦{Math.round(transactionFee).toLocaleString()}</span>
-                        </div>
-                        <div className="border-t border-blue-300 pt-2">
-                          <div className="flex justify-between">
-                            <span className="text-blue-900 font-semibold">Total to Pay:</span>
-                            <span className="text-2xl font-bold text-blue-600">₦{Math.round(totalAmount).toLocaleString()}</span>
-                          </div>
+                      ))}
+                      <div className="border-t border-blue-300 pt-2">
+                        <div className="flex justify-between">
+                          <span className="text-blue-900 font-semibold">Total to Pay:</span>
+                          <span className="text-2xl font-bold text-blue-600">₦{selectedTotal.toLocaleString()}</span>
                         </div>
                       </div>
-                      <p className="text-xs text-blue-700">
-                        * Transaction fee covers payment processing charges
-                      </p>
                     </div>
-                  )
-                })()}
+                  </div>
+                )}
 
                 <div className="flex gap-4">
                   <Button
@@ -425,7 +480,7 @@ function StudentPaymentContent() {
                     type="button"
                     className="w-full"
                     onClick={handlePayment}
-                    disabled={!formData.selectedFeeId || loading}
+                    disabled={selectedFeeIds.length === 0 || loading}
                   >
                     {loading ? (
                       <>
@@ -445,6 +500,12 @@ function StudentPaymentContent() {
             <Link href="/" className="text-sm text-blue-600 hover:underline">
               ← Back to Home
             </Link>
+            <p className="mt-3 text-sm text-gray-500">
+              Need help? Contact us:{' '}
+              <a href="tel:08066133281" className="text-blue-600 hover:underline font-medium">08066133281</a>
+              <span className="mx-1.5 text-gray-300">|</span>
+              <a href="mailto:chinedueya@gmail.com" className="text-blue-600 hover:underline font-medium">chinedueya@gmail.com</a>
+            </p>
           </div>
         </div>
       </div>

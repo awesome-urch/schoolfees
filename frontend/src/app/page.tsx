@@ -150,7 +150,7 @@ export default function LandingPage() {
               {
                 icon: <CreditCard className="h-8 w-8" />,
                 title: 'Secure Payments',
-                description: 'Paystack integration for safe and reliable transactions',
+                description: 'Remita and Paystack integration for safe and reliable transactions',
               },
               {
                 icon: <BarChart3 className="h-8 w-8" />,
@@ -208,7 +208,7 @@ export default function LandingPage() {
               {
                 step: '03',
                 title: 'Collect Payments',
-                description: 'Students pay online via Paystack. Track all transactions in your dashboard.',
+                description: 'Students pay online via Remita or Paystack. Track all transactions in your dashboard.',
               },
             ].map((item) => (
               <div key={item.step} className="text-center">

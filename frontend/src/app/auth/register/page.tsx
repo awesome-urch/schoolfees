@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { GraduationCap, Loader2, CheckCircle } from 'lucide-react'
+import { Loader2, CheckCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -16,13 +16,16 @@ export default function RegisterPage() {
   const [success, setSuccess] = useState(false)
   const [formData, setFormData] = useState({
      schoolName: '',
-    schoolCode: '',
     email: '',
     password: '',
     confirmPassword: '',
     fullName: '',
     phone: '',
+    institutionType: 'UNIVERSITY',
+    website: '',
   })
+  const [logoFile, setLogoFile] = useState<File | null>(null)
+  const [letterFile, setLetterFile] = useState<File | null>(null)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -36,13 +39,19 @@ export default function RegisterPage() {
     }
 
     try {
-      await api.post('/auth/register', {
-        schoolName: formData.schoolName,
-        schoolCode: formData.schoolCode,
-        email: formData.email,
-        password: formData.password,
-        fullName: formData.fullName,
-        phone: formData.phone,
+      const fd = new FormData()
+      fd.append('schoolName', formData.schoolName)
+      fd.append('email', formData.email)
+      fd.append('password', formData.password)
+      fd.append('fullName', formData.fullName)
+      fd.append('phone', formData.phone)
+      fd.append('institutionType', formData.institutionType)
+      if (formData.website) fd.append('website', formData.website)
+      if (logoFile) fd.append('logo', logoFile)
+      if (letterFile) fd.append('approvalLetter', letterFile)
+
+      await api.post('/auth/register', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
       })
 
       setSuccess(true)
@@ -80,10 +89,8 @@ export default function RegisterPage() {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center space-x-2 mb-4">
-            <GraduationCap className="h-10 w-10 text-blue-600" />
-            <span className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-              SchoolFees
-            </span>
+            <img src="/icons/icon-nav.png" alt="SchoolFees" className="h-10 w-10 rounded-md" />
+            <span className="text-3xl font-extrabold"><span className="text-blue-600">School</span><span className="text-orange-500">Fees</span></span>
           </Link>
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Create Account</h1>
           <p className="text-gray-600">Register as a School Owner</p>
@@ -111,18 +118,62 @@ export default function RegisterPage() {
               />
             </div>
             <div>
-              <label htmlFor="schoolCode" className="block text-sm font-medium text-gray-700">
-                School Code
+              <label htmlFor="institutionType" className="block text-sm font-medium text-gray-700">
+                Institution Type
+              </label>
+              <select
+                id="institutionType"
+                name="institutionType"
+                required
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-white"
+                value={formData.institutionType}
+                onChange={(e) => setFormData({ ...formData, institutionType: e.target.value })}
+              >
+                <option value="UNIVERSITY">University / College / Polytechnic</option>
+                <option value="SECONDARY">Secondary School</option>
+                <option value="PRIMARY">Primary School</option>
+              </select>
+            </div>
+            <div>
+              <label htmlFor="website" className="block text-sm font-medium text-gray-700">
+                School Website <span className="text-gray-400 font-normal">(optional)</span>
               </label>
               <input
-                id="schoolCode"
-                name="schoolCode"
-                type="text"
-                required
+                id="website"
+                name="website"
+                type="url"
+                placeholder="e.g., https://yourschool.edu.ng"
                 className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                value={formData.schoolCode}
-                onChange={(e) => setFormData({ ...formData, schoolCode: e.target.value })}
+                value={formData.website}
+                onChange={(e) => setFormData({ ...formData, website: e.target.value })}
               />
+            </div>
+            <div>
+              <label htmlFor="logo" className="block text-sm font-medium text-gray-700">
+                School Logo <span className="text-gray-400 font-normal">(optional, image)</span>
+              </label>
+              <input
+                id="logo"
+                name="logo"
+                type="file"
+                accept="image/*"
+                className="mt-1 block w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+                onChange={(e) => setLogoFile(e.target.files?.[0] || null)}
+              />
+            </div>
+            <div>
+              <label htmlFor="approvalLetter" className="block text-sm font-medium text-gray-700">
+                Approval Letter from Regulatory Authority <span className="text-gray-400 font-normal">(optional, PDF or image)</span>
+              </label>
+              <input
+                id="approvalLetter"
+                name="approvalLetter"
+                type="file"
+                accept="application/pdf,image/*"
+                className="mt-1 block w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+                onChange={(e) => setLetterFile(e.target.files?.[0] || null)}
+              />
+              <p className="mt-1 text-xs text-gray-500">e.g., Ministry of Education / NMCN approval letter — speeds up verification.</p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="fullName">Full Name</Label>

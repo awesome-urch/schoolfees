@@ -3,11 +3,12 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { GraduationCap, LogOut, Plus, Building2, CheckCircle, X } from 'lucide-react'
+import { LogOut, Plus, Building2, CheckCircle, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import api from '@/lib/api'
+import LiveClock from '@/components/LiveClock'
 
 export default function BusinessAccountsPage() {
   const router = useRouter()
@@ -194,13 +195,12 @@ export default function BusinessAccountsPage() {
       <header className="bg-white border-b">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <GraduationCap className="h-8 w-8 text-blue-600" />
-              <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                SchoolFees
-              </span>
-            </div>
+            <Link href="/dashboard" className="flex items-center space-x-2">
+                <img src="/icons/icon-nav.png" alt="SchoolFees" className="h-9 w-auto rounded-md" />
+                <span className="text-2xl font-extrabold"><span className="text-blue-600">School</span><span className="text-orange-500">Fees</span></span>
+              </Link>
             <div className="flex items-center space-x-4">
+              <LiveClock />
               <span className="text-sm text-gray-600">Welcome, {user?.fullName}</span>
               <Button variant="outline" size="sm" onClick={handleLogout}>
                 <LogOut className="h-4 w-4 mr-2" />
@@ -227,8 +227,8 @@ export default function BusinessAccountsPage() {
             <Link href="/dashboard/students" className="py-4 px-2 border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 whitespace-nowrap">
               Students
             </Link>
-            <Link href="/dashboard/classes" className="py-4 px-2 border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 whitespace-nowrap">
-              Classes
+            <Link href="/dashboard/academics" className="py-4 px-2 border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 whitespace-nowrap">
+              Academics
             </Link>
             <Link href="/dashboard/fees" className="py-4 px-2 border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 whitespace-nowrap">
               Fees
@@ -238,6 +238,9 @@ export default function BusinessAccountsPage() {
             </Link>
             <Link href="/dashboard/accounts" className="py-4 px-2 border-b-2 border-blue-600 text-blue-600 font-medium whitespace-nowrap">
               Accounts
+            </Link>
+            <Link href="/dashboard/settings" className="py-4 px-2 border-b-2 border-transparent text-gray-600 hover:text-gray-900 whitespace-nowrap">
+              Settings
             </Link>
           </div>
         </div>
@@ -475,7 +478,7 @@ export default function BusinessAccountsPage() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between p-6 border-b">
-              <h2 className="text-xl font-bold text-gray-900">Remitta Settings</h2>
+              <h2 className="text-xl font-bold text-gray-900">Remita Settings</h2>
               <button
                 onClick={() => {
                   setShowRemittaModal(false)

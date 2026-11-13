@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { GraduationCap, Loader2 } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -46,14 +46,12 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-[linear-gradient(to_bottom_right,rgba(239,246,255,0.72),rgba(255,255,255,0.6),rgba(238,242,255,0.72)),url('/images/login-bg.svg')] bg-cover bg-center bg-fixed flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center space-x-2 mb-4">
-            <GraduationCap className="h-10 w-10 text-blue-600" />
-            <span className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-              SchoolFees
-            </span>
+            <img src="/icons/icon-nav.png" alt="SchoolFees" className="h-10 w-10 rounded-md" />
+            <span className="text-3xl font-extrabold"><span className="text-blue-600">School</span><span className="text-orange-500">Fees</span></span>
           </Link>
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Welcome Back</h1>
           <p className="text-gray-600">Sign in to your account</p>

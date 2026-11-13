@@ -3,11 +3,12 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { GraduationCap, LogOut, Plus, DollarSign, Edit, Trash2, X } from 'lucide-react'
+import { LogOut, Plus, Edit, Trash2, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import api from '@/lib/api'
+import LiveClock from '@/components/LiveClock'
 
 export default function FeesManagementPage() {
   const router = useRouter()
@@ -194,12 +195,11 @@ export default function FeesManagementPage() {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <Link href="/dashboard" className="flex items-center space-x-2">
-              <GraduationCap className="h-8 w-8 text-blue-600" />
-              <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                SchoolFees
-              </span>
+              <img src="/icons/icon-nav.png" alt="SchoolFees" className="h-9 w-auto rounded-md" />
+              <span className="text-2xl font-extrabold"><span className="text-blue-600">School</span><span className="text-orange-500">Fees</span></span>
             </Link>
             <div className="flex items-center space-x-4">
+              <LiveClock />
               <span className="text-sm text-gray-600">{user?.fullName}</span>
               <Button variant="outline" size="sm" onClick={handleLogout}>
                 <LogOut className="h-4 w-4 mr-2" />
@@ -226,8 +226,8 @@ export default function FeesManagementPage() {
             <Link href="/dashboard/students" className="py-4 px-2 border-b-2 border-transparent text-gray-600 hover:text-gray-900">
               Students
             </Link>
-            <Link href="/dashboard/classes" className="py-4 px-2 border-b-2 border-transparent text-gray-600 hover:text-gray-900">
-              Classes
+            <Link href="/dashboard/academics" className="py-4 px-2 border-b-2 border-transparent text-gray-600 hover:text-gray-900">
+              Academics
             </Link>
             <Link href="/dashboard/fees" className="py-4 px-2 border-b-2 border-blue-600 text-blue-600 font-medium">
               Fees
@@ -237,6 +237,9 @@ export default function FeesManagementPage() {
             </Link>
             <Link href="/dashboard/accounts" className="py-4 px-2 border-b-2 border-transparent text-gray-600 hover:text-gray-900">
               Accounts
+            </Link>
+            <Link href="/dashboard/settings" className="py-4 px-2 border-b-2 border-transparent text-gray-600 hover:text-gray-900">
+              Settings
             </Link>
           </div>
         </div>
@@ -278,7 +281,7 @@ export default function FeesManagementPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {fees.length === 0 ? (
             <div className="col-span-full bg-white rounded-lg shadow p-12 text-center">
-              <DollarSign className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+              <span className="block text-6xl font-bold text-gray-300 mb-4">₦</span>
               <h3 className="text-lg font-semibold text-gray-900 mb-2">No Fee Types Yet</h3>
               <p className="text-gray-600 mb-4">Create fee types for tuition, sports, etc.</p>
               <Button onClick={() => { resetForm(); setShowModal(true); }}>
@@ -292,7 +295,7 @@ export default function FeesManagementPage() {
                 <div className="p-6">
                   <div className="flex items-start justify-between mb-4">
                     <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                      <DollarSign className="h-6 w-6 text-green-600" />
+                      <span className="text-2xl font-bold text-green-600">₦</span>
                     </div>
                     <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${
                       fee.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'

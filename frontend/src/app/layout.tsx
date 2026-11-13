@@ -1,12 +1,22 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
+import ServiceWorkerRegister from '@/components/ServiceWorkerRegister'
 import './globals.css'
 
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'SchoolFees - Modern School Fees Management Platform',
+  title: 'SchoolFees - Digital School Fees Management Platform',
   description: 'Streamline school fee collection and management with our comprehensive platform',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'SchoolFees',
+  },
+}
+
+export const viewport: Viewport = {
+  themeColor: '#2563eb',
 }
 
 export default function RootLayout({
@@ -16,7 +26,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={inter.className}>{children}</body>
+      <body className={inter.className}>
+        {children}
+        <ServiceWorkerRegister />
+      </body>
     </html>
   )
 }

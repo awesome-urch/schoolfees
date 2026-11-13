@@ -3,11 +3,36 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { GraduationCap, LogOut, Plus, Users, Edit, Trash2, X, Upload, Download } from 'lucide-react'
+import { LogOut, Plus, Users, Edit, Trash2, X, Upload, Download, Camera, Search, ChevronLeft, ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import api from '@/lib/api'
+import LiveClock from '@/components/LiveClock'
+
+const API_ORIGIN = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api').replace(/\/api\/?$/, '')
+
+function StudentAvatar({ student }: { student: any }) {
+  const [imgError, setImgError] = useState(false)
+  const initials = `${student.firstName?.[0] || ''}${student.lastName?.[0] || ''}`.toUpperCase()
+
+  if (!student.passportUrl || imgError) {
+    return (
+      <div className="h-10 w-10 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-sm font-medium shrink-0">
+        {initials || '?'}
+      </div>
+    )
+  }
+
+  return (
+    <img
+      src={`${API_ORIGIN}${student.passportUrl}`}
+      alt={`${student.firstName} ${student.lastName}`}
+      className="h-10 w-10 rounded-full object-cover shrink-0"
+      onError={() => setImgError(true)}
+    />
+  )
+}
 
 export default function StudentsManagementPage() {
   const router = useRouter()
@@ -21,6 +46,31 @@ export default function StudentsManagementPage() {
   const [showUploadModal, setShowUploadModal] = useState(false)
   const [editingStudent, setEditingStudent] = useState<any>(null)
   const [uploadFile, setUploadFile] = useState<File | null>(null)
+  const [passportFile, setPassportFile] = useState<File | null>(null)
+  const [passportPreview, setPassportPreview] = useState('')
+  const [searchTerm, setSearchTerm] = useState('')
+  const [classFilter, setClassFilter] = useState('')
+  const [page, setPage] = useState(1)
+
+  const PAGE_SIZE = 20
+  const query = searchTerm.trim().toLowerCase()
+  const filteredStudents = students.filter((s) => {
+    const matchesQuery =
+      !query ||
+      s.admissionNumber?.toLowerCase().includes(query) ||
+      s.firstName?.toLowerCase().includes(query) ||
+      s.lastName?.toLowerCase().includes(query) ||
+      s.otherNames?.toLowerCase().includes(query) ||
+      s.email?.toLowerCase().includes(query)
+    const matchesClass = !classFilter || String(s.classId) === classFilter
+    return matchesQuery && matchesClass
+  })
+  const totalPages = Math.max(1, Math.ceil(filteredStudents.length / PAGE_SIZE))
+  const currentPage = Math.min(page, totalPages)
+  const paginatedStudents = filteredStudents.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE
+  )
   const [formData, setFormData] = useState({
         classId: '',
     admissionNumber: '',
@@ -35,6 +85,8 @@ export default function StudentsManagementPage() {
     parentEmail: '',
     parentPhone: '',
     address: '',
+    waecNumber: '',
+    jambNumber: '',
   })
 
   useEffect(() => {
@@ -89,30 +141,39 @@ export default function StudentsManagementPage() {
     fetchClasses(parseInt(schoolId))
   }
 
+  const handlePassportChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (!file.type.startsWith('image/')) {
+      alert('Passport photo must be an image file')
+      return
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Passport photo must be under 5MB')
+      return
+    }
+    setPassportFile(file)
+    setPassportPreview(URL.createObjectURL(file))
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
 
     try {
-      let payload: any
+      const payload = new FormData()
+      for (const [key, value] of Object.entries(formData)) {
+        if (value !== '' && value != null) payload.append(key, String(value))
+      }
+      if (passportFile) payload.append('passport', passportFile)
+
+      const config = { headers: { 'Content-Type': 'multipart/form-data' } }
       if (editingStudent) {
-        const { gender, ...rest } = formData
-        payload = {
-          ...rest,
-          classId: formData.classId ? parseInt(formData.classId) : null,
-        }
-        if (gender) payload.gender = gender;
-        await api.patch(`/students/${editingStudent.id}/school/${selectedSchool}`, payload)
+        await api.patch(`/students/${editingStudent.id}/school/${selectedSchool}`, payload, config)
         alert('Student updated successfully!')
       } else {
-        const { gender, ...rest } = formData
-        payload = {
-          ...rest,
-          schoolId: parseInt(selectedSchool),
-          classId: formData.classId ? parseInt(formData.classId) : null,
-        }
-        if (gender) payload.gender = gender;
-        await api.post('/students', payload)
+        payload.append('schoolId', selectedSchool)
+        await api.post('/students', payload, config)
         alert('Student created successfully!')
       }
       
@@ -168,7 +229,11 @@ export default function StudentsManagementPage() {
       parentEmail: student.parentEmail || '',
       parentPhone: student.parentPhone,
       address: student.address || '',
+      waecNumber: student.waecNumber || '',
+      jambNumber: student.jambNumber || '',
     })
+    setPassportFile(null)
+    setPassportPreview(student.passportUrl ? `${API_ORIGIN}${student.passportUrl}` : '')
     setShowModal(true)
   }
 
@@ -199,7 +264,11 @@ export default function StudentsManagementPage() {
       parentEmail: '',
       parentPhone: '',
       address: '',
+      waecNumber: '',
+      jambNumber: '',
     })
+    setPassportFile(null)
+    setPassportPreview('')
     setEditingStudent(null)
   }
 
@@ -239,12 +308,11 @@ STU003,David,Johnson,Paul,2010-08-12,male,david@example.com,08034567890,Sarah Jo
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <Link href="/dashboard" className="flex items-center space-x-2">
-              <GraduationCap className="h-8 w-8 text-blue-600" />
-              <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                SchoolFees
-              </span>
+              <img src="/icons/icon-nav.png" alt="SchoolFees" className="h-9 w-auto rounded-md" />
+              <span className="text-2xl font-extrabold"><span className="text-blue-600">School</span><span className="text-orange-500">Fees</span></span>
             </Link>
             <div className="flex items-center space-x-4">
+              <LiveClock />
               <span className="text-sm text-gray-600">{user?.fullName}</span>
               <Button variant="outline" size="sm" onClick={handleLogout}>
                 <LogOut className="h-4 w-4 mr-2" />
@@ -271,8 +339,8 @@ STU003,David,Johnson,Paul,2010-08-12,male,david@example.com,08034567890,Sarah Jo
             <Link href="/dashboard/students" className="py-4 px-2 border-b-2 border-blue-600 text-blue-600 font-medium">
               Students
             </Link>
-            <Link href="/dashboard/classes" className="py-4 px-2 border-b-2 border-transparent text-gray-600 hover:text-gray-900">
-              Classes
+            <Link href="/dashboard/academics" className="py-4 px-2 border-b-2 border-transparent text-gray-600 hover:text-gray-900">
+              Academics
             </Link>
             <Link href="/dashboard/fees" className="py-4 px-2 border-b-2 border-transparent text-gray-600 hover:text-gray-900">
               Fees
@@ -282,6 +350,9 @@ STU003,David,Johnson,Paul,2010-08-12,male,david@example.com,08034567890,Sarah Jo
             </Link>
             <Link href="/dashboard/accounts" className="py-4 px-2 border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 whitespace-nowrap">
               Accounts
+            </Link>
+            <Link href="/dashboard/settings" className="py-4 px-2 border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 whitespace-nowrap">
+              Settings
             </Link>
           </div>
         </div>
@@ -325,6 +396,31 @@ STU003,David,Johnson,Paul,2010-08-12,male,david@example.com,08034567890,Sarah Jo
           </div>
         )}
 
+        {/* Search + Class Filter */}
+        <div className="bg-white rounded-lg shadow p-4 mb-6 flex flex-col sm:flex-row gap-4">
+          <div className="flex-1 relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Input
+              placeholder="Search by name, admission no, or email..."
+              value={searchTerm}
+              onChange={(e) => { setSearchTerm(e.target.value); setPage(1) }}
+              className="pl-9"
+            />
+          </div>
+          <select
+            value={classFilter}
+            onChange={(e) => { setClassFilter(e.target.value); setPage(1) }}
+            className="flex h-10 w-full sm:w-64 rounded-md border border-input bg-background px-3 py-2 text-sm"
+          >
+            <option value="">All Departments</option>
+            {classes.map((cls) => (
+              <option key={cls.id} value={cls.id}>
+                {cls.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
         {/* Students Table */}
         <div className="bg-white rounded-lg shadow overflow-hidden">
           <div className="overflow-x-auto">
@@ -333,7 +429,7 @@ STU003,David,Johnson,Paul,2010-08-12,male,david@example.com,08034567890,Sarah Jo
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Admission No</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Class</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Department</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Parent</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Contact</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
@@ -351,17 +447,28 @@ STU003,David,Johnson,Paul,2010-08-12,male,david@example.com,08034567890,Sarah Jo
                       </Button>
                     </td>
                   </tr>
+                ) : filteredStudents.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                      No students match your search
+                    </td>
+                  </tr>
                 ) : (
-                  students.map((student) => (
+                  paginatedStudents.map((student) => (
                     <tr key={student.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                         {student.admissionNumber}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">
-                          {student.firstName} {student.lastName}
+                        <div className="flex items-center gap-3">
+                          <StudentAvatar student={student} />
+                          <div>
+                            <div className="text-sm font-medium text-gray-900">
+                              {student.firstName} {student.lastName}
+                            </div>
+                            <div className="text-sm text-gray-500">{student.email}</div>
+                          </div>
                         </div>
-                        <div className="text-sm text-gray-500">{student.email}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {student.class?.name || 'Not assigned'}
@@ -389,6 +496,38 @@ STU003,David,Johnson,Paul,2010-08-12,male,david@example.com,08034567890,Sarah Jo
               </tbody>
             </table>
           </div>
+          {filteredStudents.length > 0 && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-6 py-4 border-t border-gray-200">
+              <p className="text-sm text-gray-600">
+                Showing {(currentPage - 1) * PAGE_SIZE + 1}–
+                {Math.min(currentPage * PAGE_SIZE, filteredStudents.length)} of{' '}
+                {filteredStudents.length} students
+              </p>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={currentPage === 1}
+                  onClick={() => setPage(currentPage - 1)}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  Prev
+                </Button>
+                <span className="text-sm text-gray-600">
+                  Page {currentPage} of {totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={currentPage === totalPages}
+                  onClick={() => setPage(currentPage + 1)}
+                >
+                  Next
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       </main>
 
@@ -407,6 +546,63 @@ STU003,David,Johnson,Paul,2010-08-12,male,david@example.com,08034567890,Sarah Jo
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-4">
+                {/* Passport photo */}
+                <div className="space-y-2">
+                  <Label>Passport Photo</Label>
+                  <div className="flex items-center gap-4">
+                    <div className="w-20 h-20 rounded-full bg-gray-100 border-2 border-dashed border-gray-300 flex items-center justify-center overflow-hidden shrink-0">
+                      {passportPreview ? (
+                        <img
+                          src={passportPreview}
+                          alt="Passport preview"
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <Camera className="h-8 w-8 text-gray-400" />
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <input
+                        id="student-passport"
+                        type="file"
+                        accept="image/*"
+                        onChange={handlePassportChange}
+                        className="hidden"
+                      />
+                      <input
+                        id="student-passport-camera"
+                        type="file"
+                        accept="image/*"
+                        capture="user"
+                        onChange={handlePassportChange}
+                        className="hidden"
+                      />
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => document.getElementById('student-passport')?.click()}
+                        >
+                          {passportPreview ? 'Change Photo' : 'Upload Photo'}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => document.getElementById('student-passport-camera')?.click()}
+                        >
+                          <Camera className="h-4 w-4 mr-1.5" />
+                          Take Photo
+                        </Button>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Upload a file or take a photo with your camera (image, max 5MB)
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="admissionNumber">Admission Number *</Label>
@@ -419,14 +615,14 @@ STU003,David,Johnson,Paul,2010-08-12,male,david@example.com,08034567890,Sarah Jo
                   </div>
 
                   <div>
-                    <Label htmlFor="classId">Class</Label>
+                    <Label htmlFor="classId">Department</Label>
                     <select
                       id="classId"
                       value={formData.classId}
                       onChange={(e) => setFormData({ ...formData, classId: e.target.value })}
                       className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                     >
-                      <option value="">Select Class</option>
+                      <option value="">Select Department</option>
                       {classes.map((cls) => (
                         <option key={cls.id} value={cls.id}>{cls.name}</option>
                       ))}
@@ -541,6 +737,26 @@ STU003,David,Johnson,Paul,2010-08-12,male,david@example.com,08034567890,Sarah Jo
                       id="address"
                       value={formData.address}
                       onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="jambNumber">JAMB Reg. Number <span className="text-gray-400 font-normal">(universities)</span></Label>
+                    <Input
+                      id="jambNumber"
+                      placeholder="e.g., 202612345678AB"
+                      value={formData.jambNumber}
+                      onChange={(e) => setFormData({ ...formData, jambNumber: e.target.value })}
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="waecNumber">WAEC Exam Number <span className="text-gray-400 font-normal">(universities)</span></Label>
+                    <Input
+                      id="waecNumber"
+                      placeholder="e.g., 4251234567"
+                      value={formData.waecNumber}
+                      onChange={(e) => setFormData({ ...formData, waecNumber: e.target.value })}
                     />
                   </div>
                 </div>

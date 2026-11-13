@@ -3,11 +3,12 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { GraduationCap, LogOut, Plus, Calendar, Edit, Trash2, X, CheckCircle } from 'lucide-react'
+import { LogOut, Plus, Calendar, Edit, Trash2, X, CheckCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import api from '@/lib/api'
+import LiveClock from '@/components/LiveClock'
 
 export default function SessionsManagementPage() {
   const router = useRouter()
@@ -20,9 +21,20 @@ export default function SessionsManagementPage() {
   const [editingSession, setEditingSession] = useState<any>(null)
   const [formData, setFormData] = useState({
     name: '',
+    term: '',
     startDate: '',
     endDate: '',
   })
+
+  const TERM_OPTIONS = [
+    { value: 'FIRST_TERM', label: 'First Term' },
+    { value: 'SECOND_TERM', label: 'Second Term' },
+    { value: 'THIRD_TERM', label: 'Third Term' },
+    { value: 'FIRST_SEMESTER', label: 'First Semester' },
+    { value: 'SECOND_SEMESTER', label: 'Second Semester' },
+  ]
+
+  const termLabel = (t: string | null) => TERM_OPTIONS.find(o => o.value === t)?.label || ''
 
   useEffect(() => {
     const userData = localStorage.getItem('user')
@@ -70,10 +82,11 @@ export default function SessionsManagementPage() {
     setLoading(true)
 
     try {
-      const payload = {
+      const payload: any = {
         ...formData,
         schoolId: parseInt(selectedSchool),
       }
+      if (!payload.term) delete payload.term
 
       if (editingSession) {
         await api.patch(`/academic-sessions/${editingSession.id}/school/${selectedSchool}`, payload)
@@ -97,6 +110,7 @@ export default function SessionsManagementPage() {
     setEditingSession(session)
     setFormData({
       name: session.name,
+      term: session.term || '',
       startDate: session.startDate.split('T')[0],
       endDate: session.endDate.split('T')[0],
     })
@@ -118,6 +132,7 @@ export default function SessionsManagementPage() {
   const resetForm = () => {
     setFormData({
       name: '',
+      term: '',
       startDate: '',
       endDate: '',
     })
@@ -145,13 +160,12 @@ export default function SessionsManagementPage() {
       <header className="bg-white border-b">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <GraduationCap className="h-8 w-8 text-blue-600" />
-              <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                SchoolFees
-              </span>
-            </div>
+            <Link href="/dashboard" className="flex items-center space-x-2">
+                <img src="/icons/icon-nav.png" alt="SchoolFees" className="h-9 w-auto rounded-md" />
+                <span className="text-2xl font-extrabold"><span className="text-blue-600">School</span><span className="text-orange-500">Fees</span></span>
+              </Link>
             <div className="flex items-center space-x-4">
+              <LiveClock />
               <span className="text-sm text-gray-600">Welcome, {user?.fullName}</span>
               <Button variant="outline" size="sm" onClick={handleLogout}>
                 <LogOut className="h-4 w-4 mr-2" />
@@ -178,8 +192,8 @@ export default function SessionsManagementPage() {
             <Link href="/dashboard/students" className="py-4 px-2 border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 whitespace-nowrap">
               Students
             </Link>
-            <Link href="/dashboard/classes" className="py-4 px-2 border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 whitespace-nowrap">
-              Classes
+            <Link href="/dashboard/academics" className="py-4 px-2 border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 whitespace-nowrap">
+              Academics
             </Link>
             <Link href="/dashboard/fees" className="py-4 px-2 border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 whitespace-nowrap">
               Fees
@@ -189,6 +203,9 @@ export default function SessionsManagementPage() {
             </Link>
             <Link href="/dashboard/accounts" className="py-4 px-2 border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 whitespace-nowrap">
               Accounts
+            </Link>
+            <Link href="/dashboard/settings" className="py-4 px-2 border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 whitespace-nowrap">
+              Settings
             </Link>
           </div>
         </div>
@@ -253,6 +270,9 @@ export default function SessionsManagementPage() {
                       Session Name
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Term
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Start Date
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -276,6 +296,15 @@ export default function SessionsManagementPage() {
                           )}
                           <span className="font-medium text-gray-900">{session.name}</span>
                         </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {session.term ? (
+                          <span className="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
+                            {termLabel(session.term)}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-gray-400">—</span>
+                        )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                         {new Date(session.startDate).toLocaleDateString()}
@@ -348,13 +377,26 @@ export default function SessionsManagementPage() {
                 <Input
                   id="name"
                   type="text"
-                  placeholder="e.g., 2023/2024 - First Term"
+                  placeholder="e.g., 2025/2026"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   required
                 />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="term">Term / Semester (optional)</Label>
+                <select
+                  id="term"
+                  value={formData.term}
+                  onChange={(e) => setFormData({ ...formData, term: e.target.value })}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                >
+                  <option value="">Whole session (no term)</option>
+                  {TERM_OPTIONS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                </select>
                 <p className="text-xs text-gray-500">
-                  Format: YYYY/YYYY - Term Name (e.g., 2023/2024 - First Term)
+                  Pick a term to bill per term, e.g. "2025/2026" + "First Term". Universities can pick First/Second Semester.
                 </p>
               </div>
 

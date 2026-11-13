@@ -3,11 +3,12 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { GraduationCap, LogOut, Plus, Building2, Edit, Trash2, X } from 'lucide-react'
+import { LogOut, Plus, Building2, Edit, Trash2, X, Link2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import api from '@/lib/api'
+import LiveClock from '@/components/LiveClock'
 
 export default function SchoolsManagementPage() {
   const router = useRouter()
@@ -47,6 +48,16 @@ export default function SchoolsManagementPage() {
       console.error('Failed to fetch schools:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleCopyPaymentLink = async (schoolId: number) => {
+    const url = `${window.location.origin}/student/pay?school=${schoolId}`
+    try {
+      await navigator.clipboard.writeText(url)
+      alert(`Payment link copied:\n${url}`)
+    } catch {
+      prompt('Copy this payment link:', url)
     }
   }
 
@@ -136,12 +147,11 @@ export default function SchoolsManagementPage() {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <Link href="/dashboard" className="flex items-center space-x-2">
-              <GraduationCap className="h-8 w-8 text-blue-600" />
-              <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                SchoolFees
-              </span>
+              <img src="/icons/icon-nav.png" alt="SchoolFees" className="h-9 w-auto rounded-md" />
+              <span className="text-2xl font-extrabold"><span className="text-blue-600">School</span><span className="text-orange-500">Fees</span></span>
             </Link>
             <div className="flex items-center space-x-4">
+              <LiveClock />
               <span className="text-sm text-gray-600">{user?.fullName}</span>
               <Button variant="outline" size="sm" onClick={handleLogout}>
                 <LogOut className="h-4 w-4 mr-2" />
@@ -168,8 +178,8 @@ export default function SchoolsManagementPage() {
             <Link href="/dashboard/students" className="py-4 px-2 border-b-2 border-transparent text-gray-600 hover:text-gray-900">
               Students
             </Link>
-            <Link href="/dashboard/classes" className="py-4 px-2 border-b-2 border-transparent text-gray-600 hover:text-gray-900">
-              Classes
+            <Link href="/dashboard/academics" className="py-4 px-2 border-b-2 border-transparent text-gray-600 hover:text-gray-900">
+              Academics
             </Link>
             <Link href="/dashboard/fees" className="py-4 px-2 border-b-2 border-transparent text-gray-600 hover:text-gray-900">
               Fees
@@ -179,6 +189,9 @@ export default function SchoolsManagementPage() {
             </Link>
             <Link href="/dashboard/accounts" className="py-4 px-2 border-b-2 border-transparent text-gray-600 hover:text-gray-900">
               Accounts
+            </Link>
+            <Link href="/dashboard/settings" className="py-4 px-2 border-b-2 border-transparent text-gray-600 hover:text-gray-900">
+              Settings
             </Link>
           </div>
         </div>
@@ -242,6 +255,14 @@ export default function SchoolsManagementPage() {
                     >
                       <Edit className="h-4 w-4 mr-1" />
                       Edit
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      title="Copy student payment link"
+                      onClick={() => handleCopyPaymentLink(school.id)}
+                    >
+                      <Link2 className="h-4 w-4" />
                     </Button>
                     <Button
                       size="sm"

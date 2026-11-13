@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { GraduationCap, Users, CheckCircle, XCircle, Clock, LogOut, Search } from 'lucide-react'
+import { Users, CheckCircle, XCircle, Clock, LogOut, Search, Trash2, KeyRound } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import api from '@/lib/api'
@@ -89,6 +89,30 @@ export default function SchoolOwnersPage() {
     }
   }
 
+  const handleDelete = async (ownerId: number) => {
+    if (!confirm('Permanently delete this school owner? Their schools and all related data will be removed. This cannot be undone.')) return
+
+    try {
+      await api.delete(`/auth/school-owners/${ownerId}`)
+      alert('School owner deleted successfully!')
+      fetchOwners()
+    } catch (error: any) {
+      alert(error.response?.data?.message || 'Failed to delete')
+    }
+  }
+
+  const handleResetPassword = async (ownerId: number, ownerName: string) => {
+    const newPassword = prompt(`Enter a new password for ${ownerName}:`)
+    if (!newPassword) return
+
+    try {
+      await api.patch(`/auth/school-owners/${ownerId}/reset-password`, { password: newPassword })
+      alert('Password reset successfully! Share the new password with the school owner.')
+    } catch (error: any) {
+      alert(error.response?.data?.message || 'Failed to reset password')
+    }
+  }
+
   const handleLogout = () => {
     localStorage.removeItem('accessToken')
     localStorage.removeItem('refreshToken')
@@ -113,12 +137,10 @@ export default function SchoolOwnersPage() {
       <header className="bg-white border-b">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <GraduationCap className="h-8 w-8 text-blue-600" />
-              <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                SchoolFees Admin
-              </span>
-            </div>
+            <Link href="/admin/dashboard" className="flex items-center space-x-2">
+              <img src="/icons/icon-nav.png" alt="SchoolFees" className="h-9 w-auto rounded-md" />
+              <span className="text-2xl font-extrabold"><span className="text-blue-600">School</span><span className="text-orange-500">Fees Admin</span></span>
+            </Link>
             <div className="flex items-center space-x-4">
               <span className="text-sm text-gray-600">Super Admin: {user?.fullName}</span>
               <Button variant="outline" size="sm" onClick={handleLogout}>
@@ -312,26 +334,42 @@ export default function SchoolOwnersPage() {
                         {new Date(owner.createdAt).toLocaleDateString()}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        {!owner.isApproved ? (
-                          <div className="flex gap-2">
-                            <Button
-                              size="sm"
-                              onClick={() => handleApprove(owner.id)}
-                              className="bg-green-600 hover:bg-green-700"
-                            >
-                              Approve
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              onClick={() => handleReject(owner.id)}
-                            >
-                              Reject
-                            </Button>
-                          </div>
-                        ) : (
-                          <span className="text-gray-400">No actions</span>
-                        )}
+                        <div className="flex gap-2">
+                          {!owner.isApproved && (
+                            <>
+                              <Button
+                                size="sm"
+                                onClick={() => handleApprove(owner.id)}
+                                className="bg-green-600 hover:bg-green-700"
+                              >
+                                Approve
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => handleReject(owner.id)}
+                              >
+                                Reject
+                              </Button>
+                            </>
+                          )}
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            title="Reset password"
+                            onClick={() => handleResetPassword(owner.id, owner.fullName)}
+                          >
+                            <KeyRound className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            title="Delete"
+                            onClick={() => handleDelete(owner.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   ))
