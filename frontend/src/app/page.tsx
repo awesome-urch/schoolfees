@@ -409,6 +409,7 @@ export default function LandingPage() {
               <ul className="space-y-2 text-gray-400">
                 <li><a href="/privacy" className="hover:text-white transition">Privacy</a></li>
                 <li><a href="/terms" className="hover:text-white transition">Terms</a></li>
+                <li><a href="/refund-policy" className="hover:text-white transition">Refund Policy</a></li>
               </ul>
             </div>
           </div>
