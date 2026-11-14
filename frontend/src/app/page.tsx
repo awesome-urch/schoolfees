@@ -52,21 +52,10 @@ export default function LandingPage() {
                 <img src="/icons/icon-nav.png" alt="SchoolFees" className="h-9 w-auto rounded-md" />
                 <span className="text-2xl font-extrabold hidden sm:inline"><span className="text-blue-600">School</span><span className="text-orange-500">Fees</span></span>
               </Link>
-            <div className="hidden md:flex items-center space-x-8">
+            <div className="hidden md:flex items-center space-x-6 whitespace-nowrap">
               <a href="#features" className="text-gray-600 hover:text-blue-600 transition">Features</a>
               <a href="#pricing" className="text-gray-600 hover:text-blue-600 transition">Pricing</a>
               <a href="#about" className="text-gray-600 hover:text-blue-600 transition">About</a>
-              <button
-                onClick={() => setShowRegistration(true)}
-                className="text-blue-600 font-semibold hover:text-blue-700 transition flex items-center gap-1"
-              >
-                <UserPlus className="h-4 w-4" />
-                Register Child
-              </button>
-              <Link href="/student/pay" className="text-blue-600 font-semibold hover:text-blue-700 transition flex items-center gap-1">
-                <CreditCard className="h-4 w-4" />
-                Pay Fees
-              </Link>
               <a href="https://school-portal.com.ng" target="_blank" rel="noopener noreferrer" className="text-indigo-600 font-semibold hover:text-indigo-700 transition flex items-center gap-1">
                 <GraduationCap className="h-4 w-4" />
                 School Portal
@@ -74,37 +63,29 @@ export default function LandingPage() {
               <Link href="/auth/login" className="text-gray-600 hover:text-blue-600 transition">
                 School Login
               </Link>
-              <Link 
+              <Link
                 href="/auth/register"
                 className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition"
               >
                 Get Started
               </Link>
             </div>
-            <div className="md:hidden flex items-center gap-2">
-              <button
-                onClick={() => setShowRegistration(true)}
-                className="bg-white border border-blue-600 text-blue-600 px-3 py-2 rounded-lg text-sm font-semibold hover:bg-blue-50 transition flex items-center gap-1"
-              >
-                <UserPlus className="h-4 w-4" />
-                Register
-              </button>
-              <Link
-                href="/student/pay"
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 transition flex items-center gap-1"
-              >
-                <CreditCard className="h-4 w-4" />
-                Pay Fees
-              </Link>
+            <div className="md:hidden flex items-center gap-3 whitespace-nowrap">
               <a
                 href="https://school-portal.com.ng"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-indigo-600 px-2 py-2 text-sm font-semibold hover:text-indigo-700 transition flex items-center gap-1"
+                className="text-indigo-600 text-sm font-semibold hover:text-indigo-700 transition flex items-center gap-1"
               >
                 <GraduationCap className="h-4 w-4" />
                 Portal
               </a>
+              <Link
+                href="/auth/register"
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 transition"
+              >
+                Get Started
+              </Link>
             </div>
           </div>
         </div>
