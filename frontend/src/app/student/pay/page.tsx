@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Loader2, CreditCard, Search } from 'lucide-react'
+import { Loader2, CreditCard, Search, ChevronDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -28,6 +28,7 @@ function StudentPaymentContent() {
     paymentMethod: 'remitta',
   })
   const [selectedFeeIds, setSelectedFeeIds] = useState<number[]>([])
+  const [feeDropdownOpen, setFeeDropdownOpen] = useState(false)
 
   const paidFeeIds = new Set(
     (student?.payments || [])
@@ -120,7 +121,9 @@ function StudentPaymentContent() {
       const studentClassId = response.data?.classId
       setFees(
         feesResponse.data.filter(
-          (fee: any) => !fee.class || fee.class?.id === studentClassId
+          (fee: any) =>
+            fee.isActive !== false &&
+            (!fee.class || fee.class?.id === studentClassId)
         )
       )
 
@@ -360,70 +363,85 @@ function StudentPaymentContent() {
                 </div>
 
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label>What do you want to pay?</Label>
-                    {unpaidFees.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={toggleSelectAll}
-                        className="text-sm font-medium text-blue-600 hover:underline"
-                      >
-                        {selectedFeeIds.length === unpaidFees.length ? 'Deselect all' : 'Select all'}
-                      </button>
-                    )}
-                  </div>
-                  <div className="space-y-3">
-                    {fees.map((fee) => {
-                      const paid = paidFeeIds.has(fee.id)
-                      const selected = selectedFeeIds.includes(fee.id)
-                      return (
+                  <Label>What do you want to pay?</Label>
+                  <button
+                    type="button"
+                    onClick={() => setFeeDropdownOpen((v) => !v)}
+                    className="w-full flex items-center justify-between rounded-lg border-2 border-gray-200 bg-white px-4 py-3 text-left transition hover:border-blue-300"
+                  >
+                    <span className="text-sm font-medium text-gray-700">
+                      {selectedFeeIds.length > 0
+                        ? `${selectedFeeIds.length} fee${selectedFeeIds.length > 1 ? 's' : ''} selected — ₦${selectedTotal.toLocaleString()}`
+                        : 'Select fee(s) to pay'}
+                    </span>
+                    <ChevronDown
+                      className={`h-5 w-5 text-gray-400 transition-transform ${feeDropdownOpen ? 'rotate-180' : ''}`}
+                    />
+                  </button>
+
+                  {feeDropdownOpen && (
+                    <div className="overflow-hidden rounded-lg border-2 border-gray-200 bg-white shadow-lg divide-y divide-gray-100">
+                      {unpaidFees.length > 1 && (
                         <button
-                          key={fee.id}
                           type="button"
-                          disabled={paid}
-                          onClick={() => toggleFee(fee.id)}
-                          className={`w-full flex items-center gap-3 rounded-lg border-2 px-4 py-3 text-left transition ${
-                            paid
-                              ? 'border-gray-200 bg-gray-50 opacity-60 cursor-not-allowed'
-                              : selected
-                                ? 'border-blue-600 bg-blue-50'
-                                : 'border-gray-200 bg-white hover:border-blue-300'
-                          }`}
+                          onClick={toggleSelectAll}
+                          className="w-full px-4 py-2.5 text-left text-sm font-medium text-blue-600 hover:bg-blue-50"
                         >
-                          <span
-                            className={`w-5 h-5 shrink-0 rounded border-2 flex items-center justify-center ${
+                          {selectedFeeIds.length === unpaidFees.length ? 'Deselect all' : 'Select all'}
+                        </button>
+                      )}
+                      {fees.map((fee) => {
+                        const paid = paidFeeIds.has(fee.id)
+                        const selected = selectedFeeIds.includes(fee.id)
+                        return (
+                          <button
+                            key={fee.id}
+                            type="button"
+                            disabled={paid}
+                            onClick={() => toggleFee(fee.id)}
+                            className={`w-full flex items-center gap-3 px-4 py-3 text-left transition ${
                               paid
-                                ? 'border-gray-300 bg-gray-100'
+                                ? 'bg-gray-50 opacity-60 cursor-not-allowed'
                                 : selected
-                                  ? 'border-blue-600 bg-blue-600'
-                                  : 'border-gray-300 bg-white'
+                                  ? 'bg-blue-50'
+                                  : 'bg-white hover:bg-blue-50/50'
                             }`}
                           >
-                            {selected && (
-                              <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                              </svg>
-                            )}
-                          </span>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium text-gray-900">{fee.name}</p>
-                            {fee.session?.name && (
-                              <p className="text-xs text-gray-500">{fee.session.name}</p>
-                            )}
-                          </div>
-                          {paid ? (
-                            <span className="text-xs font-semibold text-green-700 bg-green-100 px-2 py-1 rounded-full">
-                              Paid
+                            <span
+                              className={`w-5 h-5 shrink-0 rounded border-2 flex items-center justify-center ${
+                                paid
+                                  ? 'border-gray-300 bg-gray-100'
+                                  : selected
+                                    ? 'border-blue-600 bg-blue-600'
+                                    : 'border-gray-300 bg-white'
+                              }`}
+                            >
+                              {selected && (
+                                <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                </svg>
+                              )}
                             </span>
-                          ) : (
-                            <span className="text-lg font-bold text-gray-900">
-                              ₦{fee.amount.toLocaleString()}
-                            </span>
-                          )}
-                        </button>
-                      )
-                    })}
-                  </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-gray-900">{fee.name}</p>
+                              {fee.session?.name && (
+                                <p className="text-xs text-gray-500">{fee.session.name}</p>
+                              )}
+                            </div>
+                            {paid ? (
+                              <span className="text-xs font-semibold text-green-700 bg-green-100 px-2 py-1 rounded-full">
+                                Paid
+                              </span>
+                            ) : (
+                              <span className="text-lg font-bold text-gray-900">
+                                ₦{Number(fee.amount).toLocaleString()}
+                              </span>
+                            )}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )}
                   {fees.length === 0 && (
                     <p className="text-sm text-gray-500">No fees found for this student.</p>
                   )}
