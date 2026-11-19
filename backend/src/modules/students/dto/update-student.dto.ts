@@ -1,6 +1,8 @@
 import { IsString, IsOptional, IsEmail, IsDateString, IsEnum, IsNumber, IsBoolean } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class UpdateStudentDto {
+  @Type(() => Number)
   @IsNumber()
   @IsOptional()
   classId?: number;
@@ -56,4 +58,12 @@ export class UpdateStudentDto {
   @IsBoolean()
   @IsOptional()
   isActive?: boolean;
+
+  @IsString()
+  @IsOptional()
+  waecNumber?: string;
+
+  @IsString()
+  @IsOptional()
+  jambNumber?: string;
 }

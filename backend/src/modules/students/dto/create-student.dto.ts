@@ -1,10 +1,14 @@
 import { IsString, IsNotEmpty, IsEmail, IsOptional, IsDateString, IsEnum, IsNumber } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class CreateStudentDto {
+  // @Type(() => Number) is required: multipart form fields arrive as strings
+  @Type(() => Number)
   @IsNumber()
   @IsNotEmpty()
   schoolId: number;
 
+  @Type(() => Number)
   @IsNumber()
   @IsOptional()
   classId?: number;
@@ -56,4 +60,12 @@ export class CreateStudentDto {
   @IsEnum(['male', 'female', 'other'])
   @IsOptional()
   gender?: string;
+
+  @IsString()
+  @IsOptional()
+  waecNumber?: string;
+
+  @IsString()
+  @IsOptional()
+  jambNumber?: string;
 }

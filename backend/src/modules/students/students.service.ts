@@ -2,11 +2,15 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as XLSX from 'xlsx';
+import * as fs from 'fs';
+import { join } from 'path';
 import { Student } from '../../entities/student.entity';
 import { School } from '../../entities/school.entity';
 import { Class } from '../../entities/class.entity';
 import { CreateStudentDto } from './dto/create-student.dto';
 import { UpdateStudentDto } from './dto/update-student.dto';
+import { SelfRegisterStudentDto } from './dto/self-register-student.dto';
+import { AlumniPaymentDto } from './dto/alumni-payment.dto';
 
 @Injectable()
 export class StudentsService {
@@ -19,7 +23,7 @@ export class StudentsService {
     private classRepo: Repository<Class>,
   ) {}
 
-  async create(createStudentDto: CreateStudentDto) {
+  async create(createStudentDto: CreateStudentDto, passport?: Express.Multer.File) {
     const school = await this.schoolRepo.findOne({
       where: { id: createStudentDto.schoolId },
     });
@@ -38,6 +42,8 @@ export class StudentsService {
       }
     }
 
+    createStudentDto.admissionNumber = createStudentDto.admissionNumber?.trim();
+
     // Check if admission number exists
     const existing = await this.studentRepo.findOne({
       where: {
@@ -54,9 +60,95 @@ export class StudentsService {
       ...createStudentDto,
       school,
       class: classEntity,
+      passportUrl: passport ? `/uploads/passports/${passport.filename}` : null,
     });
 
     return this.studentRepo.save(student);
+  }
+
+  async selfRegister(dto: SelfRegisterStudentDto, passport?: Express.Multer.File) {
+    const school = await this.schoolRepo.findOne({
+      where: { id: dto.schoolId },
+    });
+
+    if (!school || !school.isActive) {
+      throw new NotFoundException('School not found');
+    }
+
+    let classEntity = null;
+    if (dto.classId) {
+      classEntity = await this.classRepo.findOne({
+        where: { id: dto.classId, school: { id: school.id } },
+      });
+      if (!classEntity) {
+        throw new NotFoundException('Class not found for this school');
+      }
+    }
+
+    let admissionNumber = dto.admissionNumber?.trim();
+    if (admissionNumber) {
+      const existing = await this.studentRepo.findOne({
+        where: { admissionNumber },
+      });
+      if (existing) {
+        throw new BadRequestException(
+          'This admission number is already registered. Use it on the payment page instead.',
+        );
+      }
+    } else {
+      admissionNumber = await this.generateAdmissionNumber(school.id);
+    }
+
+    const student = this.studentRepo.create({
+      ...dto,
+      admissionNumber,
+      school,
+      class: classEntity,
+      passportUrl: passport ? `/uploads/passports/${passport.filename}` : null,
+    });
+
+    return this.studentRepo.save(student);
+  }
+
+  // Continues the school's own admission numbering by incrementing the
+  // numeric suffix of the most recently registered student, e.g.
+  // SCS/STU/230240 -> SCS/STU/230241. Falls back to a random REG- code
+  // when the school has no numbered pattern to follow.
+  private async generateAdmissionNumber(schoolId: number): Promise<string> {
+    const lastStudent = await this.studentRepo
+      .createQueryBuilder('student')
+      .where('student.school_id = :schoolId', { schoolId })
+      .andWhere('student.admission_number NOT LIKE :reg', { reg: 'REG-%' })
+      .orderBy('student.id', 'DESC')
+      .getOne();
+
+    const match = lastStudent?.admissionNumber?.match(/^(.*?)(\d+)$/);
+    if (match) {
+      const [, prefix, digits] = match;
+      let next = parseInt(digits, 10) + 1;
+      let admissionNumber = `${prefix}${String(next).padStart(digits.length, '0')}`;
+      while (await this.studentRepo.findOne({ where: { admissionNumber } })) {
+        next++;
+        admissionNumber = `${prefix}${String(next).padStart(digits.length, '0')}`;
+      }
+      return admissionNumber;
+    }
+
+    let admissionNumber = '';
+    let exists = true;
+    while (exists) {
+      admissionNumber = `REG-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+      const found = await this.studentRepo.findOne({ where: { admissionNumber } });
+      exists = !!found;
+    }
+    return admissionNumber;
+  }
+
+  async findClassesBySchool(schoolId: number) {
+    return this.classRepo.find({
+      where: { school: { id: schoolId } },
+      order: { name: 'ASC' },
+    });
   }
 
   async findAll(schoolId: number, classId?: number) {
@@ -85,20 +177,93 @@ export class StudentsService {
     return student;
   }
 
-  async findByAdmissionNumber(admissionNumber: string, schoolId: number) {
-    const student = await this.studentRepo.findOne({
-      where: { admissionNumber, school: { id: schoolId } },
-      relations: ['school', 'class'],
-    });
+  async findByAdmissionNumber(
+    admissionNumber: string,
+    schoolId: number,
+    phone?: string,
+  ) {
+    const student = await this.studentRepo
+      .createQueryBuilder('student')
+      .leftJoinAndSelect('student.school', 'school')
+      .leftJoinAndSelect('student.class', 'class')
+      .leftJoinAndSelect('student.payments', 'payments')
+      .where('TRIM(student.admissionNumber) = :admissionNumber', {
+        admissionNumber: admissionNumber.trim(),
+      })
+      .andWhere('school.id = :schoolId', { schoolId })
+      .getOne();
 
     if (!student) {
       throw new NotFoundException('Student not found');
     }
 
+    // Phone is optional: when provided it must match either the parent's or
+    // the student's number on record; when omitted, admission number alone
+    // identifies the student.
+    if (phone) {
+      const matches = [student.parentPhone, student.phone]
+        .filter(Boolean)
+        .some((registered) => this.phonesMatch(registered!, phone));
+      if (!matches) {
+        throw new NotFoundException('Student not found');
+      }
+    }
+
     return student;
   }
 
-  async update(id: number, schoolId: number, updateStudentDto: UpdateStudentDto) {
+  // Public transcript/alumni payment flow: resolve a payer by their
+  // registration number; when no record exists (former students who left
+  // before digitisation), create an inactive alumni record so the payment
+  // still links to a real student row the bursary can verify.
+  async findOrCreateAlumni(dto: AlumniPaymentDto) {
+    const school = await this.schoolRepo.findOne({
+      where: { id: dto.schoolId },
+    });
+    if (!school) {
+      throw new NotFoundException('School not found');
+    }
+
+    const admissionNumber = dto.admissionNumber.trim();
+    const existing = await this.studentRepo
+      .createQueryBuilder('student')
+      .leftJoinAndSelect('student.school', 'school')
+      .leftJoinAndSelect('student.class', 'class')
+      .where('TRIM(student.admissionNumber) = :admissionNumber', {
+        admissionNumber,
+      })
+      .andWhere('school.id = :schoolId', { schoolId: dto.schoolId })
+      .getOne();
+
+    if (existing) return existing;
+
+    const student = this.studentRepo.create({
+      admissionNumber,
+      firstName: dto.firstName.trim(),
+      lastName: dto.lastName.trim(),
+      phone: dto.phone?.trim() || null,
+      isActive: false,
+      school,
+    });
+    const saved = await this.studentRepo.save(student);
+    saved.school = school;
+    return saved;
+  }
+
+  // Compare by national significant digits so 0803..., 803..., and
+  // +234803... forms of the same number all match.
+  private phonesMatch(registered: string, provided?: string): boolean {
+    const toNSN = (v?: string) => (v || '').replace(/\D/g, '').slice(-10);
+    const providedNsn = toNSN(provided);
+    return providedNsn.length === 10 && providedNsn === toNSN(registered);
+  }
+
+  async update(
+    id: number,
+    schoolId: number,
+    updateStudentDto: UpdateStudentDto,
+    passport?: Express.Multer.File,
+  ) {
     const student = await this.findOne(id, schoolId);
 
     if (updateStudentDto.classId) {
@@ -112,6 +277,17 @@ export class StudentsService {
     }
 
     Object.assign(student, updateStudentDto);
+
+    if (passport) {
+      if (student.passportUrl) {
+        // Best-effort cleanup of the replaced photo
+        fs.promises
+          .unlink(join(process.cwd(), student.passportUrl))
+          .catch(() => {});
+      }
+      student.passportUrl = `/uploads/passports/${passport.filename}`;
+    }
+
     return this.studentRepo.save(student);
   }
 
@@ -158,18 +334,20 @@ export class StudentsService {
             }
           }
 
+          const cell = (v: any) => v?.toString().trim() || undefined;
+
           const studentData: CreateStudentDto = {
             schoolId,
-            admissionNumber: row.admissionNumber || row.AdmissionNumber,
-            firstName: row.firstName || row.FirstName,
-            lastName: row.lastName || row.LastName,
-            otherNames: row.otherNames || row.OtherNames,
-            email: row.email || row.Email,
-            phone: row.phone || row.Phone,
-            parentName: row.parentName || row.ParentName,
-            parentPhone: row.parentPhone || row.ParentPhone,
-            parentEmail: row.parentEmail || row.ParentEmail,
-            address: row.address || row.Address,
+            admissionNumber: cell(row.admissionNumber || row.AdmissionNumber)!,
+            firstName: cell(row.firstName || row.FirstName)!,
+            lastName: cell(row.lastName || row.LastName)!,
+            otherNames: cell(row.otherNames || row.OtherNames),
+            email: cell(row.email || row.Email),
+            phone: cell(row.phone || row.Phone),
+            parentName: cell(row.parentName || row.ParentName)!,
+            parentPhone: cell(row.parentPhone || row.ParentPhone)!,
+            parentEmail: cell(row.parentEmail || row.ParentEmail),
+            address: cell(row.address || row.Address),
             dateOfBirth: dateOfBirth,
             gender: (row.gender || row.Gender)?.toLowerCase(),
           };
@@ -193,7 +371,7 @@ export class StudentsService {
           results.failed++;
           results.errors.push({
             row: row.admissionNumber || row.AdmissionNumber,
-            error: error.message,
+            error: error instanceof Error ? error.message : 'Unknown error',
           });
         }
       }

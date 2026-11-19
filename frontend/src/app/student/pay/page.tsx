@@ -28,6 +28,8 @@ function StudentPaymentContent() {
     email: '',
     paymentMethod: 'remitta',
   })
+  const [alumniMode, setAlumniMode] = useState(false)
+  const [alumniData, setAlumniData] = useState({ firstName: '', lastName: '', phone: '' })
   const [selectedFeeIds, setSelectedFeeIds] = useState<number[]>([])
   const [feeDropdownOpen, setFeeDropdownOpen] = useState(false)
 
@@ -147,13 +149,54 @@ function StudentPaymentContent() {
     }
   }
 
+  // Alumni/transcript flow: resolve by registration number, creating an
+  // inactive alumni record when the student predates the system.
+  const lookupAlumni = async (schoolId: string) => {
+    setLoading(true)
+    setError('')
+    try {
+      const response = await publicApi.post('/students/alumni', {
+        schoolId: parseInt(schoolId),
+        admissionNumber: formData.admissionNumber.trim(),
+        firstName: alumniData.firstName.trim(),
+        lastName: alumniData.lastName.trim(),
+        phone: alumniData.phone.trim() || undefined,
+      })
+      setStudent(response.data)
+
+      const feesResponse = await publicApi.get(`/fees/school/${schoolId}`)
+      const active = feesResponse.data.filter((f: any) => f.isActive !== false)
+      const transcriptFees = active.filter((f: any) =>
+        /transcript/i.test(f.name || '')
+      )
+      setFees(
+        (transcriptFees.length > 0
+          ? transcriptFees
+          : active.filter((f: any) => !f.class)
+        ).sort((a: any, b: any) => a.id - b.id)
+      )
+      return true
+    } catch (err: any) {
+      setError(
+        err.response?.data?.message ||
+          'Could not continue. Check the registration number and details.'
+      )
+      return false
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const handleFindStudent = async (e: React.FormEvent) => {
     e.preventDefault()
     if (student) {
       setStep(2)
       return
     }
-    if (await lookupStudent(formData.schoolId, formData.admissionNumber)) {
+    const found = alumniMode
+      ? await lookupAlumni(formData.schoolId)
+      : await lookupStudent(formData.schoolId, formData.admissionNumber)
+    if (found) {
       setStep(2)
     }
   }
@@ -331,16 +374,67 @@ function StudentPaymentContent() {
                 )}
 
                 <div className="space-y-2">
-                  <Label htmlFor="admissionNumber">Admission Number</Label>
+                  <Label htmlFor="admissionNumber">
+                    {alumniMode ? 'Registration / Matric Number' : 'Admission Number'}
+                  </Label>
                   <Input
                     id="admissionNumber"
                     type="text"
-                    placeholder="Enter admission number"
+                    placeholder={alumniMode ? 'Enter your registration number' : 'Enter admission number'}
                     value={formData.admissionNumber}
                     onChange={(e) => setFormData({ ...formData, admissionNumber: e.target.value })}
                     required
                   />
                 </div>
+
+                {alumniMode && (
+                  <>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="firstName">First Name</Label>
+                        <Input
+                          id="firstName"
+                          type="text"
+                          placeholder="First name"
+                          value={alumniData.firstName}
+                          onChange={(e) => setAlumniData({ ...alumniData, firstName: e.target.value })}
+                          required
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="lastName">Last Name</Label>
+                        <Input
+                          id="lastName"
+                          type="text"
+                          placeholder="Last name"
+                          value={alumniData.lastName}
+                          onChange={(e) => setAlumniData({ ...alumniData, lastName: e.target.value })}
+                          required
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="alumniPhone">Phone Number (optional)</Label>
+                      <Input
+                        id="alumniPhone"
+                        type="tel"
+                        placeholder="e.g. 0803 456 7890"
+                        value={alumniData.phone}
+                        onChange={(e) => setAlumniData({ ...alumniData, phone: e.target.value })}
+                      />
+                    </div>
+                  </>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => { setAlumniMode(!alumniMode); setError('') }}
+                  className="text-xs text-blue-600 hover:underline"
+                >
+                  {alumniMode
+                    ? 'Current student or parent? Use the admission number form'
+                    : 'Former student paying for transcript or other fees? Click here'}
+                </button>
 
                   </>
                 )}
