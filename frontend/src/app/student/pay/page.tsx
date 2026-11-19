@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Loader2, CreditCard, Search, ChevronDown } from 'lucide-react'
+import { Loader2, CreditCard, Search, ChevronDown, GraduationCap } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -21,6 +21,7 @@ function StudentPaymentContent() {
   const [schools, setSchools] = useState<any[]>([])
   const [filteredSchools, setFilteredSchools] = useState<any[]>([])
   const [schoolSearchTerm, setSchoolSearchTerm] = useState('')
+  const [lockedSchool, setLockedSchool] = useState<any | null>(null)
   const [formData, setFormData] = useState({
     schoolId: '',
     admissionNumber: '',
@@ -65,6 +66,12 @@ function StudentPaymentContent() {
     const schoolParam = searchParams.get('school')
     const admissionParam = searchParams.get('admission')
     const schoolValid = schoolParam && schools.some((s) => s.id === parseInt(schoolParam))
+
+    // Deep link from a school's own website — lock the selector so parents
+    // only see their school, not the full platform list.
+    if (schoolValid) {
+      setLockedSchool(schools.find((s) => s.id === parseInt(schoolParam)))
+    }
 
     if (schoolParam || admissionParam) {
       setFormData((prev) => ({
@@ -155,7 +162,7 @@ function StudentPaymentContent() {
     setStudent(null)
     setFees([])
     setError('')
-    setFormData((prev) => ({ ...prev, schoolId: '', admissionNumber: '' }))
+    setFormData((prev) => ({ ...prev, schoolId: lockedSchool ? String(lockedSchool.id) : '', admissionNumber: '' }))
     setSelectedFeeIds([])
     setSchoolSearchTerm('')
   }
@@ -271,6 +278,16 @@ function StudentPaymentContent() {
                   </div>
                 ) : (
                   <>
+                {lockedSchool ? (
+                  <div className="space-y-2">
+                    <Label>School</Label>
+                    <div className="flex items-center gap-3 bg-blue-50 border border-blue-200 rounded-lg px-4 py-3">
+                      <GraduationCap className="h-5 w-5 text-blue-600 flex-shrink-0" />
+                      <p className="text-sm font-semibold text-gray-900">{lockedSchool.name}</p>
+                    </div>
+                  </div>
+                ) : (
+                  <>
                 <div className="space-y-2">
                   <Label htmlFor="schoolSearch">Search Your School</Label>
                   <div className="relative">
@@ -310,6 +327,8 @@ function StudentPaymentContent() {
                     <p className="text-xs text-gray-500">Loading schools...</p>
                   )}
                 </div>
+                  </>
+                )}
 
                 <div className="space-y-2">
                   <Label htmlFor="admissionNumber">Admission Number</Label>
