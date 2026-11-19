@@ -631,12 +631,19 @@ function StudentPaymentContent() {
             <Link href="/" className="text-sm text-blue-600 hover:underline">
               ← Back to Home
             </Link>
-            <p className="mt-3 text-sm text-gray-500">
-              Need help? Contact us:{' '}
-              <a href="tel:08066133281" className="text-blue-600 hover:underline font-medium">08066133281</a>
-              <span className="mx-1.5 text-gray-300">|</span>
-              <a href="mailto:chinedueya@gmail.com" className="text-blue-600 hover:underline font-medium">chinedueya@gmail.com</a>
-            </p>
+            {(() => {
+              const sch = lockedSchool || student?.school
+              const phone = sch?.phone || '08066133281'
+              const email = sch?.email || 'chinedueya@gmail.com'
+              return (
+                <p className="mt-3 text-sm text-gray-500">
+                  Need help? Contact{sch ? ` ${sch.name}` : ' us'}:{' '}
+                  <a href={`tel:${phone}`} className="text-blue-600 hover:underline font-medium">{phone}</a>
+                  <span className="mx-1.5 text-gray-300">|</span>
+                  <a href={`mailto:${email}`} className="text-blue-600 hover:underline font-medium">{email}</a>
+                </p>
+              )
+            })()}
           </div>
         </div>
       </div>
