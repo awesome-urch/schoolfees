@@ -429,7 +429,7 @@ function StudentPaymentContent() {
                 <button
                   type="button"
                   onClick={() => { setAlumniMode(!alumniMode); setError('') }}
-                  className="text-xs text-blue-600 hover:underline"
+                  className="text-sm font-bold text-blue-600 hover:text-blue-700 hover:underline"
                 >
                   {alumniMode
                     ? 'Current student or parent? Use the admission number form'
