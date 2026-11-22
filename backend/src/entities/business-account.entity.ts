@@ -41,10 +41,19 @@ export class BusinessAccount {
   @Column({ name: 'remitta_api_key', nullable: true })
   remittaApiKey: string;
 
+  // Connect Gateway publicKey paired with the secretKey above.
+  @Column({ name: 'remitta_public_key', nullable: true })
+  remittaPublicKey: string;
+
   @Column({ name: 'remitta_service_type_id', nullable: true })
   remittaServiceTypeId: string;
 
-  @ManyToOne(() => School, school => school.businessAccounts)
+  // Sub-account ID returned by the Remita Checkout API — identifies this bank
+  // account for split settlement on the platform's merchant profile.
+  @Column({ name: 'remitta_subaccount_id', nullable: true })
+  remittaSubaccountId: string;
+
+  @ManyToOne(() => School, school => school.businessAccounts, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'school_id' })
   school: School;
 

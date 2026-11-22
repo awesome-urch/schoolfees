@@ -54,19 +54,21 @@ export class SchoolsController {
 
   @Patch(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('school_owner')
+  @Roles('super_admin', 'school_owner')
   update(
     @CurrentUser() user: any,
     @Param('id') id: string,
     @Body() updateSchoolDto: UpdateSchoolDto,
   ) {
-    return this.schoolsService.update(+id, user.userId, updateSchoolDto);
+    const ownerId = user.userType === 'school_owner' ? user.userId : undefined;
+    return this.schoolsService.update(+id, ownerId, updateSchoolDto);
   }
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('school_owner')
+  @Roles('super_admin', 'school_owner')
   remove(@CurrentUser() user: any, @Param('id') id: string) {
-    return this.schoolsService.remove(+id, user.userId);
+    const ownerId = user.userType === 'school_owner' ? user.userId : undefined;
+    return this.schoolsService.remove(+id, ownerId);
   }
 }

@@ -8,6 +8,13 @@ import { Payment } from './payment.entity';
 import { AcademicSession } from './academic-session.entity';
 import { BusinessAccount } from './business-account.entity';
 
+export enum InstitutionType {
+  UNIVERSITY = 'UNIVERSITY',
+  SECONDARY = 'SECONDARY',
+  PRIMARY = 'PRIMARY',
+}
+
+
 @Entity('schools')
 export class School {
   @PrimaryGeneratedColumn()
@@ -30,6 +37,15 @@ export class School {
 
   @Column({ name: 'logo_url', nullable: true })
   logoUrl: string;
+
+  @Column({ nullable: true })
+  website: string;
+
+  @Column({ name: 'approval_letter_url', nullable: true })
+  approvalLetterUrl: string;
+
+  @Column({ type: 'enum', enum: InstitutionType, default: InstitutionType.SECONDARY, name: 'institution_type' })
+  institutionType: InstitutionType;
 
   @Column({ name: 'is_active', default: true })
   isActive: boolean;

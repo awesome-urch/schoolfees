@@ -58,6 +58,20 @@ export class AcademicSessionsService {
     return session;
   }
 
+  async update(id: number, schoolId: number, dto: Partial<CreateSessionDto>) {
+    const session = await this.findOne(id, schoolId);
+
+    if (dto.isCurrent) {
+      await this.sessionRepo.update(
+        { school: { id: schoolId }, isCurrent: true },
+        { isCurrent: false },
+      );
+    }
+
+    Object.assign(session, dto);
+    return this.sessionRepo.save(session);
+  }
+
   async setCurrent(id: number, schoolId: number) {
     const session = await this.findOne(id, schoolId);
 

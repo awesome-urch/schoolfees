@@ -28,7 +28,13 @@ export class SchoolStaff {
   @Column({ name: 'is_active', default: true })
   isActive: boolean;
 
-  @ManyToOne(() => School, school => school.staff)
+  @Column({ name: 'reset_token', nullable: true })
+  resetToken: string;
+
+  @Column({ name: 'reset_token_expires', type: 'datetime', nullable: true })
+  resetTokenExpires: Date;
+
+  @ManyToOne(() => School, school => school.staff, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'school_id' })
   school: School;
 

@@ -1,16 +1,21 @@
 import { Injectable, UnauthorizedException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import * as bcrypt from 'bcryptjs';
+import * as crypto from 'crypto';
 import { ConfigService } from '@nestjs/config';
 import { SchoolOwner } from '../../entities/school-owner.entity';
 import { School } from '../../entities/school.entity';
 import { SchoolStaff } from '../../entities/school-staff.entity';
 import { SuperAdmin } from '../../entities/super-admin.entity';
 import { RefreshToken } from '../../entities/refresh-token.entity';
+import { AcademicSession } from '../../entities/academic-session.entity';
+import { BusinessAccount } from '../../entities/business-account.entity';
+import { Settlement } from '../../entities/settlement.entity';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
+import { MailService } from '../mail/mail.service';
 
 @Injectable()
 export class AuthService {
@@ -27,10 +32,15 @@ export class AuthService {
     private refreshTokenRepo: Repository<RefreshToken>,
     private jwtService: JwtService,
     private configService: ConfigService,
+    private mailService: MailService,
   ) {}
 
-  async register(registerDto: RegisterDto) {
-    const { email, password, fullName, phone, schoolName,schoolCode} = registerDto;
+  async register(
+    registerDto: RegisterDto,
+    files?: { logo?: Express.Multer.File[]; approvalLetter?: Express.Multer.File[] },
+    skipPortalSync = false,
+  ) {
+    const { email, password, fullName, phone, schoolName,schoolCode, institutionType, website} = registerDto;
 
     // Check if email already exists
     const existing = await this.schoolOwnerRepo.findOne({ where: { email } });
@@ -41,10 +51,18 @@ export class AuthService {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    // Auto-generate a unique school code when none is provided
+    let code = schoolCode;
+    if (!code) {
+      do {
+        code = 'SCH-' + Math.floor(1000 + Math.random() * 9000);
+      } while (await this.schoolOwnerRepo.findOne({ where: { code } }));
+    }
+
     // Create school owner
     const schoolOwner = this.schoolOwnerRepo.create({
       name: schoolName,
-      code: schoolCode,
+      code,
       email,
       password: hashedPassword,
       fullName,
@@ -61,15 +79,61 @@ export class AuthService {
       phone,
       email,
       isActive: true,
+      institutionType: institutionType || undefined,
+      website: website || null,
+      logoUrl: files?.logo?.[0] ? `/uploads/schools/${files.logo[0].filename}` : null,
+      approvalLetterUrl: files?.approvalLetter?.[0] ? `/uploads/schools/${files.approvalLetter[0].filename}` : null,
     });
 
     await this.schoolRepo.save(school);
+
+    await this.mailService.sendRegistrationPending(schoolOwner);
+
+    if (!skipPortalSync) {
+      this.syncToSchoolPortal(registerDto, code, schoolOwner.id).catch((err) => {
+        console.error('School Portal sync failed:', err?.message || err);
+      });
+    }
 
     return {
       message: 'Registration successful. Please wait for admin approval.',
       userId: schoolOwner.id,
       schoolId: school.id,
     };
+  }
+
+  private async syncToSchoolPortal(
+    registerDto: RegisterDto,
+    schoolCode: string,
+    feePortalId: number,
+  ) {
+    const baseUrl =
+      this.configService.get<string>('SCHOOLPORTAL_API_URL') ||
+      'http://localhost:5001/api';
+
+    const response = await fetch(`${baseUrl.replace(/\/$/, '')}/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        schoolName: registerDto.schoolName,
+        schoolCode,
+        email: registerDto.email,
+        password: registerDto.password,
+        fullName: registerDto.fullName,
+        schoolPhone: registerDto.phone,
+        institutionType: registerDto.institutionType,
+        feePortalId: String(feePortalId),
+      }),
+    });
+
+    if (!response.ok) {
+      const body: any = await response.json().catch(() => ({}));
+      throw new Error(
+        typeof body?.message === 'string'
+          ? body.message
+          : `Portal sync failed with status ${response.status}`,
+      );
+    }
   }
 
   async login(loginDto: LoginDto) {
@@ -177,6 +241,9 @@ export class AuthService {
     owner.isActive = true;
     await this.schoolOwnerRepo.save(owner);
 
+    const school = await this.schoolRepo.findOne({ where: { ownerId: owner.id } });
+    await this.mailService.sendApproved(owner, school?.id ?? null);
+
     return { message: 'School owner approved successfully', owner };
   }
 
@@ -191,6 +258,164 @@ export class AuthService {
     await this.schoolOwnerRepo.save(owner);
 
     return { message: 'School owner rejected successfully', owner };
+  }
+
+  async deleteSchoolOwner(id: number) {
+    const owner = await this.schoolOwnerRepo.findOne({ where: { id } });
+    if (!owner) {
+      throw new BadRequestException('School owner not found');
+    }
+
+    const schools = await this.schoolRepo.find({ where: { ownerId: id } });
+    const schoolIds = schools.map((s) => s.id);
+
+    await this.schoolOwnerRepo.manager.transaction(async (manager) => {
+      if (schoolIds.length > 0) {
+        // Relations without ON DELETE CASCADE must be removed first
+        await manager.delete(Settlement, { schoolId: In(schoolIds) });
+        await manager.delete(BusinessAccount, { schoolId: In(schoolIds) });
+        await manager.delete(AcademicSession, { schoolId: In(schoolIds) });
+
+        const staff = await manager.find(SchoolStaff, {
+          where: { schoolId: In(schoolIds) },
+          select: ['id'],
+        });
+        await manager.delete(SchoolStaff, { schoolId: In(schoolIds) });
+        if (staff.length > 0) {
+          await manager.delete(RefreshToken, {
+            userId: In(staff.map((s) => s.id)),
+            userType: 'school_staff',
+          });
+        }
+
+        // classes, fee_types, payments and students cascade via DB foreign keys
+        await manager.delete(School, schoolIds);
+      }
+
+      await manager.delete(RefreshToken, { userId: id, userType: 'school_owner' });
+      await manager.delete(SchoolOwner, id);
+    });
+
+    return { message: 'School owner deleted successfully' };
+  }
+
+  async resetSchoolOwnerPassword(id: number, newPassword: string) {
+    const owner = await this.schoolOwnerRepo.findOne({ where: { id } });
+    if (!owner) {
+      throw new BadRequestException('School owner not found');
+    }
+
+    const passwordRule = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/;
+    if (!newPassword || newPassword.length < 8 || !passwordRule.test(newPassword)) {
+      throw new BadRequestException(
+        'Password must be at least 8 characters and contain uppercase, lowercase, number and special character',
+      );
+    }
+
+    owner.password = await bcrypt.hash(newPassword, 10);
+    await this.schoolOwnerRepo.save(owner);
+
+    // Invalidate existing sessions so the old credentials stop working
+    await this.refreshTokenRepo.delete({ userId: id, userType: 'school_owner' });
+
+    return { message: 'Password reset successfully' };
+  }
+
+  async forgotPassword(email: string) {
+    // Always respond the same way so this can't be used to check which
+    // emails have accounts.
+    const generic = {
+      message: 'If that email has an account, a reset link is on its way.',
+    };
+
+    const e = email.trim().toLowerCase();
+    const [owner, staff] = await Promise.all([
+      this.schoolOwnerRepo.findOne({ where: { email: e } }),
+      this.schoolStaffRepo.findOne({ where: { email: e } }),
+    ]);
+
+    const user = owner || staff;
+    const userType = owner ? 'school_owner' : 'school_staff';
+    if (!user) return generic;
+
+    const token = crypto.randomBytes(32).toString('hex');
+    user.resetToken = token;
+    user.resetTokenExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+    await (owner ? this.schoolOwnerRepo : this.schoolStaffRepo).save(user);
+
+    const base =
+      this.configService.get('FRONTEND_URL') || 'https://schoolfees.com.ng';
+    const resetUrl = `${base}/auth/reset-password?token=${token}&email=${encodeURIComponent(user.email)}&type=${userType}`;
+
+    await this.mailService.sendPasswordReset(
+      user.email,
+      user.fullName || user.name || 'there',
+      resetUrl,
+    );
+
+    return generic;
+  }
+
+  async resetPassword(email: string, token: string, newPassword: string) {
+    const e = email.trim().toLowerCase();
+    const [owner, staff] = await Promise.all([
+      this.schoolOwnerRepo.findOne({ where: { email: e } }),
+      this.schoolStaffRepo.findOne({ where: { email: e } }),
+    ]);
+
+    const user = owner || staff;
+    const userType = owner ? 'school_owner' : 'school_staff';
+    const valid =
+      user &&
+      user.resetToken &&
+      user.resetToken === token &&
+      user.resetTokenExpires &&
+      new Date() < new Date(user.resetTokenExpires);
+
+    if (!valid) {
+      throw new BadRequestException(
+        'Reset link is invalid or has expired. Request a new one.',
+      );
+    }
+
+    const passwordRule = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/;
+    if (!newPassword || newPassword.length < 8 || !passwordRule.test(newPassword)) {
+      throw new BadRequestException(
+        'Password must be at least 8 characters and contain uppercase, lowercase, number and special character',
+      );
+    }
+
+    user.password = await bcrypt.hash(newPassword, 10);
+    user.resetToken = null as any;
+    user.resetTokenExpires = null as any;
+    await (owner ? this.schoolOwnerRepo : this.schoolStaffRepo).save(user);
+
+    // Kill existing sessions so old credentials stop working
+    await this.refreshTokenRepo.delete({ userId: user.id, userType });
+
+    return { message: 'Password updated. You can now log in.' };
+  }
+
+  async changePassword(user: { userId: number; userType: string }, currentPassword: string, newPassword: string) {
+    const repo: Repository<any> =
+      user.userType === 'super_admin'
+        ? this.superAdminRepo
+        : user.userType === 'school_staff'
+          ? this.schoolStaffRepo
+          : this.schoolOwnerRepo;
+
+    const record = await repo.findOne({ where: { id: user.userId } });
+    if (!record || !(await bcrypt.compare(currentPassword, record.password))) {
+      throw new BadRequestException('Current password is incorrect');
+    }
+
+    record.password = await bcrypt.hash(newPassword, 10);
+    await repo.save(record);
+
+    // Invalidate existing sessions so a stolen token can't stay alive
+    await this.refreshTokenRepo.delete({ userId: user.userId, userType: user.userType });
+
+    return { message: 'Password updated successfully' };
   }
 
   private async generateTokens(userId: number, email: string, userType: string) {

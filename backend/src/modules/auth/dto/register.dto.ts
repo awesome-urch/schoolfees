@@ -1,4 +1,5 @@
-import { IsEmail, IsNotEmpty, IsString, MinLength, Matches, IsOptional } from 'class-validator';
+import { IsEmail, IsNotEmpty, IsString, MinLength, Matches, IsOptional, IsEnum } from 'class-validator';
+import { InstitutionType } from '../../../entities/school.entity';
 
 export class RegisterDto {
   @IsEmail()
@@ -25,6 +26,14 @@ export class RegisterDto {
   schoolName: string;
 
   @IsString()
-  @IsNotEmpty()
-  schoolCode: string;
+  @IsOptional()
+  schoolCode?: string;
+
+  @IsEnum(InstitutionType)
+  @IsOptional()
+  institutionType?: InstitutionType;
+
+  @IsString()
+  @IsOptional()
+  website?: string;
 }

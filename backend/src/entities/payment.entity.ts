@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn, Index } from 'typeorm';
 import { School } from './school.entity';
 import { Student } from './student.entity';
 import { FeeType } from './fee-type.entity';
@@ -21,7 +21,9 @@ export class Payment {
   @Column({ name: 'session_id', nullable: true })
   sessionId: number;
 
-  @Column({ unique: true })
+  // Shared by every item in a multi-fee payment — not unique per row.
+  @Index()
+  @Column()
   reference: string;
 
   @Column({ type: 'decimal', precision: 10, scale: 2 })

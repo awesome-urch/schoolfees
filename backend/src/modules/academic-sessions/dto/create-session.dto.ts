@@ -1,4 +1,5 @@
-import { IsString, IsNotEmpty, IsNumber, IsDateString, IsBoolean, IsOptional } from 'class-validator';
+import { IsString, IsNotEmpty, IsNumber, IsDateString, IsBoolean, IsOptional, IsEnum } from 'class-validator';
+import { SessionTerm } from '../../../entities/academic-session.entity';
 
 export class CreateSessionDto {
   @IsNumber()
@@ -16,6 +17,10 @@ export class CreateSessionDto {
   @IsDateString()
   @IsNotEmpty()
   endDate: string;
+
+  @IsEnum(SessionTerm)
+  @IsOptional()
+  term?: SessionTerm;
 
   @IsBoolean()
   @IsOptional()

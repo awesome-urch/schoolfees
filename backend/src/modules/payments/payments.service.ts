@@ -36,7 +36,7 @@ export class PaymentsService {
   ) {}
 
   async initializePayment(initializePaymentDto: InitializePaymentDto) {
-    const { schoolId, studentId, feeTypeId, amount, email } = initializePaymentDto;
+    const { schoolId, studentId, feeTypeId, feeTypeIds, amount, email } = initializePaymentDto;
     const paymentMethod = initializePaymentDto.paymentMethod || 'paystack';
 
     const student = await this.studentRepo.findOne({
@@ -47,14 +47,32 @@ export class PaymentsService {
       throw new NotFoundException('Student not found');
     }
 
-    const feeType = await this.feeTypeRepo.findOne({
-      where: { id: feeTypeId, school: { id: schoolId } },
+    // Payers may not have an email (e.g. rural parents); fall back to the
+    // parent's then student's email, else a placeholder — gateways require one.
+    const payerEmail =
+      email?.trim() ||
+      student.parentEmail ||
+      student.email ||
+      `payer-${student.admissionNumber || student.id}@schoolfees.com.ng`;
+
+    const ids = feeTypeIds?.length ? feeTypeIds : feeTypeId ? [feeTypeId] : [];
+    if (ids.length === 0) {
+      throw new BadRequestException('At least one fee item must be selected');
+    }
+
+    const feeTypes = await this.feeTypeRepo.find({
+      where: { id: In(ids), school: { id: schoolId } },
       relations: ['session'],
     });
 
-    if (!feeType) {
+    if (feeTypes.length !== ids.length) {
       throw new NotFoundException('Fee type not found');
     }
+
+    // Multi-item payments charge the sum of the selected fees (amounts read
+    // from the DB, never the client); single-item keeps the submitted amount.
+    const totalFeeAmount =
+      feeTypes.length === 1 ? amount : feeTypes.reduce((sum, f) => sum + Number(f.amount), 0);
 
     const school = await this.schoolRepo.findOne({ where: { id: schoolId } });
 
@@ -69,31 +87,30 @@ export class PaymentsService {
       );
     }
 
-    // Generate unique reference
+    // Generate unique reference shared by every item in this transaction
     const reference = `PAY-${Date.now()}-${studentId}`;
 
-    // Create payment record
-    const payment = this.paymentRepo.create({
-      school,
-      student,
-      feeType,
-      session: feeType.session,
-      reference,
-      amount,
-      paymentMethod,
-      status: 'pending',
-    });
+    // One payment record per selected fee item — keeps per-fee reporting
+    // accurate while a single gateway transaction covers all of them.
+    const payments = feeTypes.map((ft) =>
+      this.paymentRepo.create({
+        school,
+        student,
+        feeType: ft,
+        session: ft.session,
+        reference,
+        amount: feeTypes.length === 1 ? amount : Number(ft.amount),
+        paymentMethod,
+        status: 'pending',
+      }),
+    );
 
-    await this.paymentRepo.save(payment);
+    await this.paymentRepo.save(payments);
+    const payment = payments[0];
 
-    // Calculate transaction fee (1.5% + ₦100, capped at ₦2,000)
-    const percentageFee = amount * 0.015;
-    const flatFee = 100;
-    let transactionFee = percentageFee + flatFee;
-    if (transactionFee > 2000) {
-      transactionFee = 2000;
-    }
-    const totalAmount = amount + transactionFee;
+    // Transaction fee removed — payers are charged exactly the fee amount.
+    const transactionFee = 0;
+    const totalAmount = totalFeeAmount;
 
     if (paymentMethod === 'remitta') {
       // The account's remitta_api_key/remitta_public_key hold the school's
@@ -105,13 +122,15 @@ export class PaymentsService {
       };
 
       const payerName = `${student.firstName} ${student.lastName}`;
-      const description = `${feeType.name} payment for ${payerName}`;
+      const feeNames = feeTypes.map((f) => f.name).join(', ');
+      const description = `${feeNames} payment for ${payerName}`;
       const verifyUrl = `${this.configService.get('FRONTEND_URL')}/payment/verify?reference=${reference}`;
 
       const base = {
         paymentId: payment.id,
+        paymentIds: payments.map((p) => p.id),
         reference,
-        feeAmount: amount,
+        feeAmount: totalFeeAmount,
         transactionFee: Math.round(transactionFee),
         totalAmount: Math.round(totalAmount),
         verifyUrl,
@@ -124,15 +143,17 @@ export class PaymentsService {
           transactionId: reference,
           amount: Math.round(totalAmount),
           payerName,
-          payerEmail: email,
+          payerEmail,
           payerPhone: student.phone,
           customerId: student.admissionNumber || String(student.id),
           description,
           credentials: remittaCredentials,
         });
 
-        payment.remittaRrr = reference;
-        await this.paymentRepo.save(payment);
+        for (const p of payments) {
+          p.remittaRrr = reference;
+        }
+        await this.paymentRepo.save(payments);
         return { ...base, remita };
       }
 
@@ -143,17 +164,19 @@ export class PaymentsService {
         orderId: reference,
         amount: totalAmount,
         payerName,
-        payerEmail: email,
+        payerEmail,
         payerPhone: student.phone,
         description,
         returnUrl: verifyUrl,
         credentials: remittaCredentials,
         splitSubAccountId: primaryAccount.remittaSubaccountId || undefined,
-        splitShare: amount,
+        splitShare: totalFeeAmount,
       });
 
-      payment.remittaRrr = reference;
-      await this.paymentRepo.save(payment);
+      for (const p of payments) {
+        p.remittaRrr = reference;
+      }
+      await this.paymentRepo.save(payments);
 
       return { ...base, authorizationUrl: charge.paymentLink, accessCode: reference };
     }
@@ -167,13 +190,14 @@ export class PaymentsService {
     // Initialize Paystack payment with subaccount
     // This ensures money goes to SCHOOL'S account, not platform's account
     const paystackResponse = await this.paystackService.initializePayment({
-      email,
-      amount,
+      email: payerEmail,
+      amount: totalFeeAmount,
       reference,
       subaccountCode: primaryAccount.subaccountCode, // CRITICAL LINE!
       metadata: {
         studentId,
-        feeTypeId,
+        feeTypeId: ids[0],
+        feeTypeIds: ids,
         schoolId,
         paymentId: payment.id,
       },
@@ -181,8 +205,9 @@ export class PaymentsService {
 
     return {
       paymentId: payment.id,
+      paymentIds: payments.map((p) => p.id),
       reference,
-      feeAmount: amount,
+      feeAmount: totalFeeAmount,
       transactionFee: Math.round(transactionFee),
       totalAmount: Math.round(totalAmount),
       authorizationUrl: paystackResponse.data.authorization_url,
@@ -191,17 +216,21 @@ export class PaymentsService {
   }
 
   async verifyPayment(reference: string) {
-    const payment = await this.paymentRepo.findOne({
+    // A multi-item payment stores one row per fee under the same reference —
+    // all rows succeed or fail together.
+    const payments = await this.paymentRepo.find({
       where: { reference },
       relations: ['student', 'feeType', 'school'],
     });
 
-    if (!payment) {
+    if (payments.length === 0) {
       throw new NotFoundException('Payment not found');
     }
 
-    if (payment.status === 'successful') {
-      return { message: 'Payment already verified', payment };
+    const payment = payments[0];
+
+    if (payments.every((p) => p.status === 'successful')) {
+      return { message: 'Payment already verified', payment, payments };
     }
 
     if (payment.paymentMethod === 'remitta') {
@@ -229,16 +258,20 @@ export class PaymentsService {
       // yet paid (payer may still complete it e.g. at a bank branch), so it
       // must stay pending rather than being permanently marked failed.
       if (statusResponse.status === '00' || statusResponse.status === '01') {
-        payment.status = 'successful';
-        payment.paidAt = new Date();
-        await this.paymentRepo.save(payment);
+        for (const p of payments) {
+          p.status = 'successful';
+          p.paidAt = new Date();
+        }
+        await this.paymentRepo.save(payments);
 
-        return { message: 'Payment verified successfully', payment };
+        return { message: 'Payment verified successfully', payment, payments };
       } else if (statusResponse.status === '021') {
-        return { message: 'Payment is still pending', payment };
+        return { message: 'Payment is still pending', payment, payments };
       } else {
-        payment.status = 'failed';
-        await this.paymentRepo.save(payment);
+        for (const p of payments) {
+          p.status = 'failed';
+        }
+        await this.paymentRepo.save(payments);
         throw new BadRequestException(
           `Payment verification failed: ${statusResponse.message || 'payment not successful'}`,
         );
@@ -249,15 +282,19 @@ export class PaymentsService {
     const paystackResponse = await this.paystackService.verifyPayment(reference);
 
     if (paystackResponse.data.status === 'success') {
-      payment.status = 'successful';
-      payment.paystackReference = paystackResponse.data.reference;
-      payment.paidAt = new Date();
-      await this.paymentRepo.save(payment);
+      for (const p of payments) {
+        p.status = 'successful';
+        p.paystackReference = paystackResponse.data.reference;
+        p.paidAt = new Date();
+      }
+      await this.paymentRepo.save(payments);
 
-      return { message: 'Payment verified successfully', payment };
+      return { message: 'Payment verified successfully', payment, payments };
     } else {
-      payment.status = 'failed';
-      await this.paymentRepo.save(payment);
+      for (const p of payments) {
+        p.status = 'failed';
+      }
+      await this.paymentRepo.save(payments);
       throw new BadRequestException('Payment verification failed');
     }
   }

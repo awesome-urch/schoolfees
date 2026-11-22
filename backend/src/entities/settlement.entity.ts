@@ -24,7 +24,7 @@ export class Settlement {
   @Column({ name: 'settlement_date', type: 'timestamp', nullable: true })
   settlementDate: Date;
 
-  @ManyToOne(() => School)
+  @ManyToOne(() => School, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'school_id' })
   school: School;
 

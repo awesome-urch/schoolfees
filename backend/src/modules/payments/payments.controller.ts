@@ -6,6 +6,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CreateManualPaymentDto } from './dto/create-manual-payment.dto';
+import { BulkDeletePaymentsDto } from './dto/bulk-delete-payments.dto';
 
 @Controller('payments')
 export class PaymentsController {
@@ -55,6 +56,13 @@ export class PaymentsController {
   @Roles('school_owner', 'school_staff')
   createManualPayment(@Body() dto: CreateManualPaymentDto) {
     return this.paymentsService.createManualPayment(dto);
+  }
+
+  @Post('bulk-delete')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('school_owner', 'school_staff')
+  bulkDelete(@Body() dto: BulkDeletePaymentsDto) {
+    return this.paymentsService.bulkDelete(dto);
   }
 
   @Get('school/:schoolId/stats')

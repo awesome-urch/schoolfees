@@ -1,20 +1,24 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { BusinessAccount } from '../../entities/business-account.entity';
 import { School } from '../../entities/school.entity';
 import { PaystackService } from '../payments/paystack.service';
+import { RemittaService } from '../payments/remitta.service';
 import { CreateAccountDto } from './dto/create-account.dto';
 import { RemittaCredentialsDto } from './dto/remitta-credentials.dto';
 
 @Injectable()
 export class BusinessAccountsService {
+  private readonly logger = new Logger(BusinessAccountsService.name);
+
   constructor(
     @InjectRepository(BusinessAccount)
     private accountRepo: Repository<BusinessAccount>,
     @InjectRepository(School)
     private schoolRepo: Repository<School>,
     private paystackService: PaystackService,
+    private remittaService: RemittaService,
   ) {}
 
   async create(createAccountDto: CreateAccountDto) {
@@ -26,6 +30,7 @@ export class BusinessAccountsService {
       throw new NotFoundException('School not found');
     }
 
+    let resolvedAccountName = createAccountDto.accountName;
     try {
       // Verify account with Paystack
       const verification = await this.paystackService.resolveAccountNumber(
@@ -36,6 +41,8 @@ export class BusinessAccountsService {
       if (!verification.status) {
         throw new Error(`Account verification failed: ${verification.message || 'Invalid account details'}`);
       }
+      resolvedAccountName =
+        verification.data?.account_name || resolvedAccountName;
     } catch (error: any) {
       throw new Error(`Failed to verify account with Paystack: ${error.message}. Note: Paystack may not support this bank (OPay, Kuda, etc.) for subaccount creation. Please use a traditional Nigerian bank account.`);
     }
@@ -56,6 +63,24 @@ export class BusinessAccountsService {
 
       const subaccountCode = subaccountResponse.data.subaccount_code;
 
+      // Best-effort: also register the account as a Remita sub-account so
+      // Remita payments can settle to the school's bank account. A failure
+      // here must not block account creation.
+      let remittaSubaccountId: string | null = null;
+      try {
+        const sub = await this.remittaService.createSubAccount({
+          bankCode: createAccountDto.bankCode,
+          accountNumber: createAccountDto.accountNumber,
+          accountName: resolvedAccountName,
+          alias: `SCH-${school.id}-${createAccountDto.accountNumber.slice(-4)}`,
+        });
+        remittaSubaccountId = sub.subAccountId;
+      } catch (error: any) {
+        this.logger.warn(
+          `Remitta sub-account creation failed for school ${school.id}: ${error.message}`,
+        );
+      }
+
       // If setting as primary, unset other primary accounts
       if (createAccountDto.isPrimary) {
         await this.accountRepo.update(
@@ -69,6 +94,7 @@ export class BusinessAccountsService {
         school,
         isVerified: true,
         subaccountCode,
+        remittaSubaccountId,
       });
 
       return this.accountRepo.save(account);
@@ -102,6 +128,7 @@ export class BusinessAccountsService {
     // school's service type on that profile.
     account.remittaMerchantId = dto.remittaMerchantId || null;
     account.remittaApiKey = dto.remittaApiKey || null;
+    account.remittaPublicKey = dto.remittaPublicKey || null;
     account.remittaServiceTypeId = dto.remittaServiceTypeId;
 
     return this.accountRepo.save(account);

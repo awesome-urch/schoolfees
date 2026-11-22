@@ -1,4 +1,5 @@
-import { IsString, IsOptional, IsEmail, IsUrl, IsBoolean } from 'class-validator';
+import { IsString, IsOptional, IsEmail, IsUrl, IsBoolean, IsEnum } from 'class-validator';
+import { InstitutionType } from '../../../entities/school.entity';
 
 export class UpdateSchoolDto {
   @IsString()
@@ -40,4 +41,8 @@ export class UpdateSchoolDto {
   @IsBoolean()
   @IsOptional()
   isActive?: boolean;
+
+  @IsEnum(InstitutionType)
+  @IsOptional()
+  institutionType?: InstitutionType;
 }

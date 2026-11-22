@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Loader2 } from 'lucide-react'
@@ -13,11 +13,18 @@ export default function LoginPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [notice, setNotice] = useState('')
   const [formData, setFormData] = useState({
     email: '',
     password: '',
     userType: 'school_owner',
   })
+
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('reset') === 'success') {
+      setNotice('Password updated — sign in with your new password.')
+    }
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -59,6 +66,11 @@ export default function LoginPage() {
 
         <div className="bg-white rounded-xl shadow-lg p-8">
           <form onSubmit={handleSubmit} className="space-y-6">
+            {notice && (
+              <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg">
+                {notice}
+              </div>
+            )}
             {error && (
               <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
                 {error}
@@ -87,6 +99,12 @@ export default function LoginPage() {
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                 required
               />
+            </div>
+
+            <div className="text-right -mt-2">
+              <Link href="/auth/forgot-password" className="text-sm text-blue-600 hover:underline">
+                Forgot password?
+              </Link>
             </div>
 
             <div className="space-y-2">

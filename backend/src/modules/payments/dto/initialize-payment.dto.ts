@@ -1,4 +1,4 @@
-import { IsNumber, IsNotEmpty, IsString, IsEmail, IsIn, IsOptional } from 'class-validator';
+import { IsNumber, IsNotEmpty, IsString, IsEmail, IsIn, IsOptional, IsArray, ArrayMinSize, ValidateIf } from 'class-validator';
 
 export class InitializePaymentDto {
   @IsNumber()
@@ -9,16 +9,26 @@ export class InitializePaymentDto {
   @IsNotEmpty()
   studentId: number;
 
+  @IsOptional()
   @IsNumber()
-  @IsNotEmpty()
   feeTypeId: number;
+
+  // Multiple fee items paid together in one transaction; each item gets
+  // its own payment record but they all share a single reference.
+  @IsOptional()
+  @IsArray()
+  @ArrayMinSize(1)
+  @IsNumber({}, { each: true })
+  feeTypeIds: number[];
 
   @IsNumber()
   @IsNotEmpty()
   amount: number;
 
+  @IsOptional()
+  // Empty string from the hidden field shouldn't trip @IsEmail.
+  @ValidateIf((o) => !!o.email)
   @IsEmail()
-  @IsNotEmpty()
   email: string;
 
   @IsOptional()

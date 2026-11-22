@@ -12,4 +12,12 @@ export class CreateClassDto {
   @IsString()
   @IsOptional()
   description?: string;
+
+  @IsString()
+  @IsOptional()
+  faculty?: string;
+
+  @IsString()
+  @IsOptional()
+  department?: string;
 }

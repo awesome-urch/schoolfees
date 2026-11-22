@@ -10,6 +10,10 @@ export class RemittaCredentialsDto {
   remittaApiKey?: string;
 
   @IsString()
+  @IsOptional()
+  remittaPublicKey?: string;
+
+  @IsString()
   @IsNotEmpty()
   remittaServiceTypeId: string;
 }

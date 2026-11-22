@@ -28,6 +28,12 @@ export class AcademicSessionsController {
     return this.sessionsService.findOne(+id, +schoolId);
   }
 
+  @Patch(':id/school/:schoolId')
+  @Roles('school_owner', 'school_staff')
+  update(@Param('id') id: string, @Param('schoolId') schoolId: string, @Body() dto: Partial<CreateSessionDto>) {
+    return this.sessionsService.update(+id, +schoolId, dto);
+  }
+
   @Patch(':id/school/:schoolId/set-current')
   @Roles('school_owner', 'school_staff')
   setCurrent(@Param('id') id: string, @Param('schoolId') schoolId: string) {

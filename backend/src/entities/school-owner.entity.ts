@@ -30,6 +30,12 @@ export class SchoolOwner {
   @Column({ name: 'is_active', default: true })
   isActive: boolean;
 
+  @Column({ name: 'reset_token', nullable: true })
+  resetToken: string;
+
+  @Column({ name: 'reset_token_expires', type: 'datetime', nullable: true })
+  resetTokenExpires: Date;
+
   @OneToMany(() => School, school => school.owner)
   schools: School[];
 

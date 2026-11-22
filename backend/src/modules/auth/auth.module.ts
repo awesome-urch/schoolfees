@@ -11,10 +11,12 @@ import { School } from '../../entities/school.entity';
 import { SchoolStaff } from '../../entities/school-staff.entity';
 import { SuperAdmin } from '../../entities/super-admin.entity';
 import { RefreshToken } from '../../entities/refresh-token.entity';
+import { MailModule } from '../mail/mail.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([SchoolOwner, School, SchoolStaff, SuperAdmin, RefreshToken]),
+    MailModule,
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       imports: [ConfigModule],

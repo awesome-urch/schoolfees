@@ -50,6 +50,15 @@ export class Student {
   @Column({ type: 'enum', enum: ['Male', 'Female', 'Other'], nullable: true })
   gender: string;
 
+  @Column({ name: 'waec_number', nullable: true })
+  waecNumber: string;
+
+  @Column({ name: 'jamb_number', nullable: true })
+  jambNumber: string;
+
+  @Column({ name: 'passport_url', nullable: true })
+  passportUrl: string;
+
   @Column({ name: 'is_active', default: true })
   isActive: boolean;
 
