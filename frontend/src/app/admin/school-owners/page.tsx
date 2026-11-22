@@ -95,7 +95,7 @@ export default function SchoolOwnersPage() {
   }
 
   const handleDelete = async (ownerId: number) => {
-    if (!confirm('Permanently delete this school owner? Their schools and all related data will be removed. This cannot be undone.')) return
+    if (!confirm('Permanently delete this school owner? Their schools and all related data will be removed, AND their linked School Portal account will also be deleted. This cannot be undone.')) return
 
     try {
       await api.delete(`/auth/school-owners/${ownerId}`)
