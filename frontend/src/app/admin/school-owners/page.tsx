@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Users, CheckCircle, XCircle, Clock, LogOut, Search, Trash2, KeyRound } from 'lucide-react'
+import { Users, CheckCircle, XCircle, Clock, LogOut, Search, Trash2, KeyRound, Copy, Check, X, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import api from '@/lib/api'
@@ -16,6 +16,11 @@ export default function SchoolOwnersPage() {
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [filter, setFilter] = useState<'all' | 'pending' | 'approved'>('all')
+  const [resetTarget, setResetTarget] = useState<any | null>(null)
+  const [resetPassword, setResetPassword] = useState('')
+  const [resetDone, setResetDone] = useState('')
+  const [resetBusy, setResetBusy] = useState(false)
+  const [copied, setCopied] = useState(false)
 
   useEffect(() => {
     const userData = localStorage.getItem('user')
@@ -101,16 +106,38 @@ export default function SchoolOwnersPage() {
     }
   }
 
-  const handleResetPassword = async (ownerId: number, ownerName: string) => {
-    const newPassword = prompt(`Enter a new password for ${ownerName}:`)
-    if (!newPassword) return
+  const generatePassword = () => {
+    const pick = (chars: string, n: number) =>
+      Array.from({ length: n }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
+    return `Sf${pick('abcdefghjkmnpqrstuvwxyz', 4)}${pick('ABCDEFGHJKMNPQRSTUVWXYZ', 2)}${pick('23456789', 3)}@${pick('23456789', 1)}`
+  }
 
+  const openReset = (owner: any) => {
+    setResetTarget(owner)
+    setResetPassword(generatePassword())
+    setResetDone('')
+    setCopied(false)
+  }
+
+  const submitReset = async () => {
+    if (!resetTarget || !resetPassword) return
+    setResetBusy(true)
     try {
-      await api.patch(`/auth/school-owners/${ownerId}/reset-password`, { password: newPassword })
-      alert('Password reset successfully! Share the new password with the school owner.')
+      await api.patch(`/auth/school-owners/${resetTarget.id}/reset-password`, { password: resetPassword })
+      setResetDone(resetPassword)
     } catch (error: any) {
       alert(error.response?.data?.message || 'Failed to reset password')
+    } finally {
+      setResetBusy(false)
     }
+  }
+
+  const copyPassword = async () => {
+    try {
+      await navigator.clipboard.writeText(resetDone || resetPassword)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {}
   }
 
   const handleLogout = () => {
@@ -357,7 +384,7 @@ export default function SchoolOwnersPage() {
                             size="sm"
                             variant="outline"
                             title="Reset password"
-                            onClick={() => handleResetPassword(owner.id, owner.fullName)}
+                            onClick={() => openReset(owner)}
                           >
                             <KeyRound className="h-4 w-4" />
                           </Button>
@@ -379,6 +406,72 @@ export default function SchoolOwnersPage() {
           </div>
         </div>
       </main>
+
+      {/* Set password modal */}
+      {resetTarget && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Set New Password</h3>
+              <button onClick={() => setResetTarget(null)} className="text-gray-400 hover:text-gray-600">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <p className="text-sm text-gray-600 mb-4">
+              For <strong>{resetTarget.fullName}</strong> ({resetTarget.email})
+            </p>
+
+            {resetDone ? (
+              <div className="space-y-4">
+                <div className="bg-green-50 border border-green-200 rounded-lg px-4 py-3 text-sm text-green-700">
+                  Password updated. Share it with the school — it won&apos;t be shown again.
+                </div>
+                <div className="flex items-center gap-2">
+                  <code className="flex-1 bg-gray-100 rounded-lg px-4 py-2.5 text-sm font-mono select-all">
+                    {resetDone}
+                  </code>
+                  <Button size="sm" variant="outline" onClick={copyPassword}>
+                    {copied ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                  </Button>
+                </div>
+                <Button className="w-full" onClick={() => setResetTarget(null)}>
+                  Done
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={resetPassword}
+                    onChange={(e) => setResetPassword(e.target.value)}
+                    placeholder="New password"
+                    className="font-mono"
+                  />
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    title="Generate a strong password"
+                    onClick={() => setResetPassword(generatePassword())}
+                  >
+                    <RefreshCw className="h-4 w-4" />
+                  </Button>
+                </div>
+                <p className="text-xs text-gray-500">
+                  Min 8 characters with uppercase, lowercase, number and symbol — or use the generator.
+                </p>
+                <div className="flex gap-2">
+                  <Button variant="outline" className="flex-1" onClick={() => setResetTarget(null)}>
+                    Cancel
+                  </Button>
+                  <Button className="flex-1" disabled={resetBusy || resetPassword.length < 8} onClick={submitReset}>
+                    {resetBusy ? 'Saving...' : 'Set Password'}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
