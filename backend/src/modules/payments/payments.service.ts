@@ -1,7 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Cron } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { Between, In, Repository } from 'typeorm';
 import { Payment } from '../../entities/payment.entity';
 import { Student } from '../../entities/student.entity';
 import { FeeType } from '../../entities/fee-type.entity';
@@ -515,5 +516,57 @@ export class PaymentsService {
       totalRevenue: successfulAmount, // Total revenue from successful payments
       totalAmount, // Total amount from all payments
     };
+  }
+
+  /**
+   * Every 15 minutes, re-check pending transactions against the gateways so a
+   * missed callback/closed browser cannot leave a completed payment stuck in
+   * 'pending'. Skips records younger than 10 minutes (payer may still be in
+   * checkout) and older than 7 days (abandoned).
+   */
+  private readonly logger = new Logger(PaymentsService.name);
+
+  @Cron('*/15 * * * *')
+  async reconcilePendingPayments() {
+    const now = Date.now();
+    const pending = await this.paymentRepo.find({
+      where: {
+        status: 'pending',
+        createdAt: Between(
+          new Date(now - 7 * 24 * 60 * 60 * 1000),
+          new Date(now - 10 * 60 * 1000),
+        ),
+      },
+      select: ['id', 'reference'],
+    });
+
+    const references = [...new Set(pending.map((p) => p.reference))];
+    if (references.length === 0) {
+      return;
+    }
+
+    this.logger.log(`Reconciling ${references.length} pending reference(s)`);
+    let verified = 0;
+    let stillPending = 0;
+    let failed = 0;
+
+    for (const reference of references) {
+      try {
+        const result = await this.verifyPayment(reference);
+        if (/still pending/i.test(result?.message || '')) {
+          stillPending++;
+        } else {
+          verified++;
+        }
+      } catch (error: any) {
+        // Gateway reported failure — verifyPayment already marked the rows
+        failed++;
+        this.logger.warn(`Reconcile ${reference}: ${error?.message || error}`);
+      }
+    }
+
+    this.logger.log(
+      `Reconciliation complete: ${verified} verified, ${stillPending} still pending, ${failed} failed`,
+    );
   }
 }

@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ThrottlerModule } from '@nestjs/throttler';
+import { ScheduleModule } from '@nestjs/schedule';
 import { typeOrmConfig } from './config/typeorm.config';
 import { AuthModule } from './modules/auth/auth.module';
 import { SchoolsModule } from './modules/schools/schools.module';
@@ -30,6 +31,9 @@ import { ClassesModule } from './modules/classes/classes.module';
       ttl: parseInt(process.env.THROTTLE_TTL) || 60,
       limit: parseInt(process.env.THROTTLE_LIMIT) || 10,
     }]),
+
+    // Scheduled tasks (payment reconciliation, etc.)
+    ScheduleModule.forRoot(),
 
     // Feature modules
     AuthModule,
