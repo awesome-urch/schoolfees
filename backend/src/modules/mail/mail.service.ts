@@ -99,4 +99,15 @@ export class MailService {
     `);
     return this.send(to, 'Reset your SchoolFees password', html);
   }
+
+  async sendPasswordChanged(to: string, name: string) {
+    const html = this.layout(`
+      <p>Dear <b>${name}</b>,</p>
+      <p>This is a confirmation that the password on your SchoolFees account was just <b>changed</b>.</p>
+      <p>If you made this change (or just reset it yourself), no action is needed.</p>
+      <p><b>If you did NOT change your password</b>, your account may be compromised — reset it immediately from the login page or contact us at <a href="mailto:chinedueya@gmail.com">chinedueya@gmail.com</a>.</p>
+      <p>Regards,<br>SchoolFees Team</p>
+    `);
+    return this.send(to, 'Your SchoolFees password was changed', html);
+  }
 }

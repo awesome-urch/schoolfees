@@ -124,6 +124,13 @@ export class AuthController {
     return this.authService.resetSchoolOwnerPassword(+id, password);
   }
 
+  @Post('school-owners/:id/impersonate')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('super_admin')
+  impersonateSchoolOwner(@Param('id') id: string) {
+    return this.authService.impersonateSchoolOwner(+id);
+  }
+
   @Delete('school-owners/:id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('super_admin')

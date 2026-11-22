@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Users, CheckCircle, XCircle, Clock, LogOut, Search, Trash2, KeyRound, Copy, Check, X, RefreshCw } from 'lucide-react'
+import { Users, CheckCircle, XCircle, Clock, LogOut, Search, Trash2, KeyRound, Copy, Check, X, RefreshCw, LogIn } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import api from '@/lib/api'
@@ -129,6 +129,21 @@ export default function SchoolOwnersPage() {
       alert(error.response?.data?.message || 'Failed to reset password')
     } finally {
       setResetBusy(false)
+    }
+  }
+
+  // Log into a school's dashboard as them (impersonation for support)
+  const handleImpersonate = async (owner: any) => {
+    if (!confirm(`Log in to ${owner.fullName}'s dashboard as them?`)) return
+    try {
+      const response = await api.post(`/auth/school-owners/${owner.id}/impersonate`)
+      const { accessToken, refreshToken, user } = response.data
+      localStorage.setItem('accessToken', accessToken)
+      localStorage.setItem('refreshToken', refreshToken)
+      localStorage.setItem('user', JSON.stringify(user))
+      router.push('/dashboard')
+    } catch (error: any) {
+      alert(error.response?.data?.message || 'Failed to log in as this school')
     }
   }
 
@@ -387,6 +402,14 @@ export default function SchoolOwnersPage() {
                             onClick={() => openReset(owner)}
                           >
                             <KeyRound className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            title="Log in as this school"
+                            onClick={() => handleImpersonate(owner)}
+                          >
+                            <LogIn className="h-4 w-4" />
                           </Button>
                           <Button
                             size="sm"

@@ -317,8 +317,32 @@ export class AuthService {
 
     // Invalidate existing sessions so the old credentials stop working
     await this.refreshTokenRepo.delete({ userId: id, userType: 'school_owner' });
+    await this.mailService.sendPasswordChanged(owner.email, owner.fullName || owner.name);
 
     return { message: 'Password reset successfully' };
+  }
+
+  // Super-admin impersonation: log into a school's dashboard without
+  // touching their password — used for support/debugging.
+  async impersonateSchoolOwner(id: number) {
+    const owner = await this.schoolOwnerRepo.findOne({ where: { id } });
+    if (!owner) {
+      throw new BadRequestException('School owner not found');
+    }
+    if (!owner.isApproved) {
+      throw new BadRequestException('School account is pending approval');
+    }
+
+    const tokens = await this.generateTokens(owner.id, owner.email, 'school_owner');
+    return {
+      ...tokens,
+      user: {
+        id: owner.id,
+        email: owner.email,
+        fullName: owner.fullName,
+        userType: 'school_owner',
+      },
+    };
   }
 
   async forgotPassword(email: string) {
@@ -400,6 +424,7 @@ export class AuthService {
 
     // Kill existing sessions so old credentials stop working
     await this.refreshTokenRepo.delete({ userId: user.id, userType });
+    await this.mailService.sendPasswordChanged(user.email, user.fullName || 'there');
 
     return { message: 'Password updated. You can now log in.' };
   }
