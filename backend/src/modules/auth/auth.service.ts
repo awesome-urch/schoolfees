@@ -341,7 +341,11 @@ export class AuthService {
     const token = crypto.randomBytes(32).toString('hex');
     user.resetToken = token;
     user.resetTokenExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
-    await (owner ? this.schoolOwnerRepo : this.schoolStaffRepo).save(user);
+    if (owner) {
+      await this.schoolOwnerRepo.save(user);
+    } else {
+      await this.schoolStaffRepo.save(user as SchoolStaff);
+    }
 
     const base =
       this.configService.get('FRONTEND_URL') || 'https://schoolfees.com.ng';
@@ -349,7 +353,7 @@ export class AuthService {
 
     await this.mailService.sendPasswordReset(
       user.email,
-      user.fullName || user.name || 'there',
+      user.fullName || 'there',
       resetUrl,
     );
 
@@ -388,7 +392,11 @@ export class AuthService {
     user.password = await bcrypt.hash(newPassword, 10);
     user.resetToken = null as any;
     user.resetTokenExpires = null as any;
-    await (owner ? this.schoolOwnerRepo : this.schoolStaffRepo).save(user);
+    if (owner) {
+      await this.schoolOwnerRepo.save(user);
+    } else {
+      await this.schoolStaffRepo.save(user as SchoolStaff);
+    }
 
     // Kill existing sessions so old credentials stop working
     await this.refreshTokenRepo.delete({ userId: user.id, userType });
