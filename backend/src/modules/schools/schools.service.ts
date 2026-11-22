@@ -45,9 +45,10 @@ export class SchoolsService {
   }
 
   // Public endpoint - returns only basic school info (id, name, address)
+  // plus the school's public contact details shown on payment pages
   async findAllPublic() {
     const schools = await this.schoolRepo.find({
-      select: ['id', 'name', 'address'],
+      select: ['id', 'name', 'address', 'institutionType', 'phone', 'email'],
       order: { name: 'ASC' },
     });
     return schools;
@@ -84,14 +85,14 @@ export class SchoolsService {
     return school;
   }
 
-  async update(id: number, ownerId: number, updateSchoolDto: UpdateSchoolDto) {
+  async update(id: number, ownerId: number | undefined, updateSchoolDto: UpdateSchoolDto) {
     const school = await this.findOne(id, ownerId);
     
     Object.assign(school, updateSchoolDto);
     return this.schoolRepo.save(school);
   }
 
-  async remove(id: number, ownerId: number) {
+  async remove(id: number, ownerId: number | undefined) {
     const school = await this.findOne(id, ownerId);
     await this.schoolRepo.remove(school);
     return { message: 'School deleted successfully' };
