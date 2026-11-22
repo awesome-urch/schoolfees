@@ -1,6 +1,9 @@
 import {
   Controller,
   Delete,
+  Patch,
+  Post,
+  Body,
   Param,
   Headers,
   UnauthorizedException,
@@ -34,5 +37,45 @@ export class InternalController {
   ) {
     this.assertKey(key);
     return this.authService.deleteSchoolOwner(+ownerId, true);
+  }
+
+  // Called by School Portal when the linked school's status changes there.
+  @Patch('school-owners/:ownerId/approve')
+  approveOwner(
+    @Param('ownerId') ownerId: string,
+    @Headers('x-internal-key') key: string,
+  ) {
+    this.assertKey(key);
+    return this.authService.approveSchoolOwner(+ownerId, true);
+  }
+
+  @Patch('school-owners/:ownerId/suspend')
+  suspendOwner(
+    @Param('ownerId') ownerId: string,
+    @Headers('x-internal-key') key: string,
+  ) {
+    this.assertKey(key);
+    return this.authService.suspendSchoolOwner(+ownerId, true);
+  }
+
+  @Patch('school-owners/:ownerId/unsuspend')
+  unsuspendOwner(
+    @Param('ownerId') ownerId: string,
+    @Headers('x-internal-key') key: string,
+  ) {
+    this.assertKey(key);
+    return this.authService.unsuspendSchoolOwner(+ownerId, true);
+  }
+
+  // Called by School Portal when the school admin's password changes there —
+  // keeps both platforms on the same credential.
+  @Post('school-owners/:ownerId/sync-password')
+  syncPassword(
+    @Param('ownerId') ownerId: string,
+    @Body('password') password: string,
+    @Headers('x-internal-key') key: string,
+  ) {
+    this.assertKey(key);
+    return this.authService.syncSchoolOwnerPassword(+ownerId, password);
   }
 }

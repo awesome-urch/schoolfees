@@ -94,6 +94,26 @@ export default function SchoolOwnersPage() {
     }
   }
 
+  const handleSuspend = async (ownerId: number) => {
+    if (!confirm('Suspend this school owner? They will not be able to log in until reactivated.')) return
+
+    try {
+      await api.patch(`/auth/school-owners/${ownerId}/suspend`)
+      fetchOwners()
+    } catch (error: any) {
+      alert(error.response?.data?.message || 'Failed to suspend')
+    }
+  }
+
+  const handleUnsuspend = async (ownerId: number) => {
+    try {
+      await api.patch(`/auth/school-owners/${ownerId}/unsuspend`)
+      fetchOwners()
+    } catch (error: any) {
+      alert(error.response?.data?.message || 'Failed to reactivate')
+    }
+  }
+
   const handleDelete = async (ownerId: number) => {
     if (!confirm('Permanently delete this school owner? Their schools and all related data will be removed, AND their linked School Portal account will also be deleted. This cannot be undone.')) return
 
@@ -138,6 +158,11 @@ export default function SchoolOwnersPage() {
     try {
       const response = await api.post(`/auth/school-owners/${owner.id}/impersonate`)
       const { accessToken, refreshToken, user } = response.data
+      localStorage.setItem('impersonatorSession', JSON.stringify({
+        accessToken: localStorage.getItem('accessToken'),
+        refreshToken: localStorage.getItem('refreshToken'),
+        user: localStorage.getItem('user'),
+      }))
       localStorage.setItem('accessToken', accessToken)
       localStorage.setItem('refreshToken', refreshToken)
       localStorage.setItem('user', JSON.stringify(user))
@@ -394,6 +419,26 @@ export default function SchoolOwnersPage() {
                                 Reject
                               </Button>
                             </>
+                          )}
+                          {owner.isApproved && owner.isActive && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-orange-600 border-orange-300 hover:bg-orange-50"
+                              onClick={() => handleSuspend(owner.id)}
+                            >
+                              Suspend
+                            </Button>
+                          )}
+                          {!owner.isActive && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-blue-600 border-blue-300 hover:bg-blue-50"
+                              onClick={() => handleUnsuspend(owner.id)}
+                            >
+                              Reactivate
+                            </Button>
                           )}
                           <Button
                             size="sm"

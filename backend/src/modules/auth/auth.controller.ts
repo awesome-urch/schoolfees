@@ -117,6 +117,20 @@ export class AuthController {
     return this.authService.rejectSchoolOwner(+id);
   }
 
+  @Patch('school-owners/:id/suspend')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('super_admin')
+  suspendSchoolOwner(@Param('id') id: string) {
+    return this.authService.suspendSchoolOwner(+id);
+  }
+
+  @Patch('school-owners/:id/unsuspend')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('super_admin')
+  unsuspendSchoolOwner(@Param('id') id: string) {
+    return this.authService.unsuspendSchoolOwner(+id);
+  }
+
   @Patch('school-owners/:id/reset-password')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('super_admin')

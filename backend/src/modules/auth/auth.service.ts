@@ -231,7 +231,7 @@ export class AuthService {
     });
   }
 
-  async approveSchoolOwner(id: number) {
+  async approveSchoolOwner(id: number, skipPortalSync = false) {
     const owner = await this.schoolOwnerRepo.findOne({ where: { id } });
     if (!owner) {
       throw new BadRequestException('School owner not found');
@@ -243,6 +243,10 @@ export class AuthService {
 
     const school = await this.schoolRepo.findOne({ where: { ownerId: owner.id } });
     await this.mailService.sendApproved(owner, school?.id ?? null);
+
+    if (!skipPortalSync) {
+      this.syncOwnerStatusToPortal(id, 'approve');
+    }
 
     return { message: 'School owner approved successfully', owner };
   }
@@ -257,7 +261,56 @@ export class AuthService {
     owner.isActive = false;
     await this.schoolOwnerRepo.save(owner);
 
+    this.syncOwnerStatusToPortal(id, 'suspend');
+
     return { message: 'School owner rejected successfully', owner };
+  }
+
+  async suspendSchoolOwner(id: number, skipPortalSync = false) {
+    const owner = await this.schoolOwnerRepo.findOne({ where: { id } });
+    if (!owner) {
+      throw new BadRequestException('School owner not found');
+    }
+
+    owner.isActive = false;
+    await this.schoolOwnerRepo.save(owner);
+
+    if (!skipPortalSync) {
+      this.syncOwnerStatusToPortal(id, 'suspend');
+    }
+
+    return { message: 'School owner suspended successfully', owner };
+  }
+
+  async unsuspendSchoolOwner(id: number, skipPortalSync = false) {
+    const owner = await this.schoolOwnerRepo.findOne({ where: { id } });
+    if (!owner) {
+      throw new BadRequestException('School owner not found');
+    }
+
+    owner.isActive = true;
+    await this.schoolOwnerRepo.save(owner);
+
+    if (!skipPortalSync) {
+      this.syncOwnerStatusToPortal(id, 'unsuspend');
+    }
+
+    return { message: 'School owner reactivated successfully', owner };
+  }
+
+  // Internal endpoint target — updates the owner's password when it changed
+  // on the portal side. No notification (the origin side already emailed).
+  async syncSchoolOwnerPassword(id: number, password: string) {
+    const owner = await this.schoolOwnerRepo.findOne({ where: { id } });
+    if (!owner) {
+      throw new BadRequestException('School owner not found');
+    }
+
+    owner.password = await bcrypt.hash(password, 10);
+    await this.schoolOwnerRepo.save(owner);
+    await this.refreshTokenRepo.delete({ userId: id, userType: 'school_owner' });
+
+    return { message: 'Password synced' };
   }
 
   async deleteSchoolOwner(id: number, skipPortalSync = false) {
@@ -297,28 +350,47 @@ export class AuthService {
     });
 
     if (!skipPortalSync) {
-      this.notifyPortalOfDelete(id).catch((err) =>
-        console.error('Portal delete sync failed:', err?.message || err),
+      this.portalSync(`/internal/schools/by-fee-portal/${id}`, 'DELETE').catch(
+        (err) => console.error('Portal delete sync failed:', err?.message || err),
       );
     }
 
     return { message: 'School owner deleted successfully' };
   }
 
-  private async notifyPortalOfDelete(ownerId: number) {
+  // Outbound sync helpers — fire-and-forget calls to the School Portal
+  // internal API so the linked school mirrors owner changes made here.
+  private async portalSync(path: string, method = 'PATCH', body?: any) {
     const baseUrl =
       this.configService.get<string>('SCHOOLPORTAL_API_URL') ||
       'http://localhost:5001/api';
     const key = this.configService.get<string>('INTERNAL_SYNC_KEY');
     if (!key) return;
 
-    const response = await fetch(
-      `${baseUrl.replace(/\/$/, '')}/internal/schools/by-fee-portal/${ownerId}`,
-      { method: 'DELETE', headers: { 'x-internal-key': key } },
-    );
+    const response = await fetch(`${baseUrl.replace(/\/$/, '')}${path}`, {
+      method,
+      headers: { 'Content-Type': 'application/json', 'x-internal-key': key },
+      body: body ? JSON.stringify(body) : undefined,
+    });
     if (!response.ok) {
-      throw new Error(`Portal delete sync failed: ${response.status}`);
+      throw new Error(`Portal sync failed: ${response.status}`);
     }
+  }
+
+  private syncOwnerStatusToPortal(ownerId: number, action: string) {
+    this.portalSync(`/internal/schools/by-fee-portal/${ownerId}/${action}`).catch(
+      (err) => console.error(`Portal ${action} sync failed:`, err?.message || err),
+    );
+  }
+
+  private syncPasswordToPortal(ownerId: number, password: string) {
+    this.portalSync(
+      `/internal/schools/by-fee-portal/${ownerId}/sync-password`,
+      'POST',
+      { password },
+    ).catch((err) =>
+      console.error('Portal password sync failed:', err?.message || err),
+    );
   }
 
   async resetSchoolOwnerPassword(id: number, newPassword: string) {
@@ -340,6 +412,8 @@ export class AuthService {
     // Invalidate existing sessions so the old credentials stop working
     await this.refreshTokenRepo.delete({ userId: id, userType: 'school_owner' });
     await this.mailService.sendPasswordChanged(owner.email, owner.fullName || owner.name);
+
+    this.syncPasswordToPortal(id, newPassword);
 
     return { message: 'Password reset successfully' };
   }
@@ -448,6 +522,10 @@ export class AuthService {
     await this.refreshTokenRepo.delete({ userId: user.id, userType });
     await this.mailService.sendPasswordChanged(user.email, user.fullName || 'there');
 
+    if (owner) {
+      this.syncPasswordToPortal(owner.id, newPassword);
+    }
+
     return { message: 'Password updated. You can now log in.' };
   }
 
@@ -469,6 +547,10 @@ export class AuthService {
 
     // Invalidate existing sessions so a stolen token can't stay alive
     await this.refreshTokenRepo.delete({ userId: user.userId, userType: user.userType });
+
+    if (user.userType === 'school_owner') {
+      this.syncPasswordToPortal(user.userId, newPassword);
+    }
 
     return { message: 'Password updated successfully' };
   }
