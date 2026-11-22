@@ -260,7 +260,7 @@ export class AuthService {
     return { message: 'School owner rejected successfully', owner };
   }
 
-  async deleteSchoolOwner(id: number) {
+  async deleteSchoolOwner(id: number, skipPortalSync = false) {
     const owner = await this.schoolOwnerRepo.findOne({ where: { id } });
     if (!owner) {
       throw new BadRequestException('School owner not found');
@@ -296,7 +296,29 @@ export class AuthService {
       await manager.delete(SchoolOwner, id);
     });
 
+    if (!skipPortalSync) {
+      this.notifyPortalOfDelete(id).catch((err) =>
+        console.error('Portal delete sync failed:', err?.message || err),
+      );
+    }
+
     return { message: 'School owner deleted successfully' };
+  }
+
+  private async notifyPortalOfDelete(ownerId: number) {
+    const baseUrl =
+      this.configService.get<string>('SCHOOLPORTAL_API_URL') ||
+      'http://localhost:5001/api';
+    const key = this.configService.get<string>('INTERNAL_SYNC_KEY');
+    if (!key) return;
+
+    const response = await fetch(
+      `${baseUrl.replace(/\/$/, '')}/internal/schools/by-fee-portal/${ownerId}`,
+      { method: 'DELETE', headers: { 'x-internal-key': key } },
+    );
+    if (!response.ok) {
+      throw new Error(`Portal delete sync failed: ${response.status}`);
+    }
   }
 
   async resetSchoolOwnerPassword(id: number, newPassword: string) {
